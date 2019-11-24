@@ -92,5 +92,4 @@ backup:
   theme: next
   message: Back up my https://blog.elichn.top/ blog
   repository:
-    github: git@github.com:elichn/elichn.github.io.git,backup
-  
+    github: git@github.com:elichn/elichn.github.io.git,hexo
