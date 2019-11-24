@@ -1,0 +1,855 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search>
+  <entry>
+    <title>CPU爆满处理</title>
+    <url>/2019/11/12/CPU%E7%88%86%E6%BB%A1/</url>
+    <content><![CDATA[<h1 id="记在前面"><a href="#记在前面" class="headerlink" title="记在前面"></a>记在前面</h1><p>记录一次生产环境服务器CPU爆满的排查和处理过程。<a id="more"></a></p>
+<h1 id="收到问题"><a href="#收到问题" class="headerlink" title="收到问题"></a>收到问题</h1><p>2019.11.12 10:50左右钉钉接到运维说生产服务器×××1，内存爆了；紧接着业务前端反馈系统卡顿，页面加载不出来，日志钉钉报警和短信报警接踵而来。</p>
+<p><img src="/images/cpu/server-monitor.png" alt></p>
+<p>通过阿里云ecs查看cpu监控</p>
+<p><img src="/images/cpu/cpu-ecs.jpg" alt></p>
+<p>通过阿里云rds查看mysql链接</p>
+<p><img src="/images/cpu/mysql-session.jpg" alt></p>
+<h1 id="保证服务可用"><a href="#保证服务可用" class="headerlink" title="保证服务可用"></a>保证服务可用</h1><p>2019.11.12 10:52 联系运维，把×××1流量打到备用×××2服务器上，保证服务可用，业务不停。业务基本恢复。</p>
+<h1 id="排查"><a href="#排查" class="headerlink" title="排查"></a>排查</h1><p>业务恢复后，立即展开排查，首先定位问题。</p>
+<h2 id="定位"><a href="#定位" class="headerlink" title="定位"></a>定位</h2><ul>
+<li>首选缩小定位范围，×××1服务器就部署了 一个jvm实例，jvm出问题。</li>
+<li>开发没有线上生产环境权限，去运维工位排查，在运维机器上输入指令<strong>jstat -gcutil 21257 10000</strong>，观察GC情况，发现fullgc频繁，应该有oom。</li>
+<li>告知运维dump，给运维发送指令。从<strong>jmap -heap 21257</strong> 如下 看出老年代内存已耗尽<br>Heap Usage:<br>PS Young Generation<br>Eden Space:<br> capacity = 1673527296 (1596.0MB)<br> used     = 1673527296 (1596.0MB)<br> free     = 0 (0.0MB)<br> 100.0% used<br>From Space:<br> capacity = 185073664 (176.5MB)<br> used     = 0 (0.0MB)<br> free     = 185073664 (176.5MB)<br> 0.0% used<br>To Space:<br> capacity = 199753728 (190.5MB)<br> used     = 0 (0.0MB)<br> free     = 199753728 (190.5MB)<br> 0.0% used<br>PS Old Generation<br> capacity = 4194304000 (4000.0MB)<br> used     = 4193795072 (3999.5146484375MB)<br> free     = 508928 (0.4853515625MB)<br> 99.9878662109375% used</li>
+<li><p>结合 <strong>jmap -histo 21257</strong> 如下 看出应该是业务在大量导出数据导致oom<br>num       #instances          #bytes      class name<br><br> 1:      18694429     1794665184  org.apache.xmlbeans.impl.store.Xobj$AttrXobj<br> 2:      12262097     1177161312  org.apache.xmlbeans.impl.store.Xobj$ElementXobj<br> 3:      18841022      641741264  [C<br> 4:      18862556      452701344  java.lang.String<br> 5:       6249347      249973880  java.util.TreeMap$Entry<br> 6:       6198572      247942880  org.apache.xmlbeans.impl.values.XmlUnsignedIntImpl<br> 7:       6061782      193977024  org.apache.poi.xssf.usermodel.XSSFCell<br> 8:       6061656      193972992  org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.STCellRefImpl<br>10:       6029665      192949280  org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.STCellTypeImpl<br>11:       6061782      145482768  org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTCellImpl<br>12:       7009050      112144800  java.lang.Integer</p>
+</li>
+<li><p>dump文件太大8个多G，当时dump文件分析,其中审核导出的对象数有20多万。</p>
+</li>
+</ul>
+<p><img src="/images/cpu/dump-thread.png" alt></p>
+<h2 id="查日志"><a href="#查日志" class="headerlink" title="查日志"></a>查日志</h2><p>通过内存分析，初步定位就是业务在大量导出数据导致oom，通过阿里云日志sls去证明业务有人在大量导出数据，通过日志查询，如下审核导出查询，时间范围是一年多</p>
+<p>2019.11.12 11:20  查到对应日志如下：</p>
+<p><img src="/images/cpu/sls-log.png" alt></p>
+<p>其中期间涉及大数据量导出主要有两个，一个是××导出×.web.work.ExportController#downLoadEStage，另一个是××导出×.web.work.ExportController#downloadAuditor</p>
+<p>其中还有oom日志如下：</p>
+<p><img src="/images/cpu/oom-sls.png" alt></p>
+<h2 id="处理"><a href="#处理" class="headerlink" title="处理"></a>处理</h2><p>2019.11.12 11:53  给运维相关导出流量打到××× heavy那台服务器，解决分流问题，运维配置nginx。</p>
+<h2 id="下午CPU又爆满"><a href="#下午CPU又爆满" class="headerlink" title="下午CPU又爆满"></a>下午CPU又爆满</h2><p>下午×××2服务器又出现了CPU爆满情况，排查发现上午分流配置根本没有生效。之前线上导出是有分流的（即导出单独打到一台服务器），<strong>进一步排查是运维在Jenkins，前端项目Jenkins配置有问题</strong>，导出相关没有打到对应的导出服务器上。联系运维配置好。彻底解决分流问题。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><h2 id="运维层面"><a href="#运维层面" class="headerlink" title="运维层面"></a>运维层面</h2><p>生产环境×××流量是有分流的，但运维在Quickbuild迁移到Jenkins中，×××前端项目Jenkins配置有问题，导致流量都打在×××1上。后续运维配置需要验证。</p>
+<h2 id="研发层面"><a href="#研发层面" class="headerlink" title="研发层面"></a>研发层面</h2><p>模板导出换成其他方式导出，或者升级jxls的jar包，现在用的jar包太老，sql有优化地方，该优化。</p>
+<h2 id="产品层面"><a href="#产品层面" class="headerlink" title="产品层面"></a>产品层面</h2><p>后续可以考虑业务系统逐渐屏蔽掉相关业务。</p>
+]]></content>
+      <categories>
+        <category>java</category>
+      </categories>
+      <tags>
+        <tag>java</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>APM-调研</title>
+    <url>/2019/09/20/APM-%E8%B0%83%E7%A0%94/</url>
+    <content><![CDATA[<h1 id="记在前面"><a href="#记在前面" class="headerlink" title="记在前面"></a>记在前面</h1><p>应用性能管理（Application Performance Management）是一个比较新的应用管理方向<a id="more"></a>，主要指对企业的关键业务应用进行全方位监控、告警，提高企业应用的可靠性和质量，保证用户得到良好的服务，降低整体运维成本。</p>
+<h2 id="作用"><a href="#作用" class="headerlink" title="作用"></a>作用</h2><ul>
+<li>应用系统存活检测</li>
+<li>应用程序性能指标检测（CPU利用率、内存利用率等）</li>
+<li>应用程序关键事件检测</li>
+<li>检测数据持久化存储并能够多维度查询</li>
+<li>服务调用跟踪</li>
+<li>监控告警</li>
+</ul>
+<h1 id="选型方案"><a href="#选型方案" class="headerlink" title="选型方案"></a>选型方案</h1><table>
+<thead>
+<tr>
+<th>方案</th>
+<th>名称</th>
+<th>介绍</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>方案一</td>
+<td>Spring Boot Admin</td>
+<td>Spring Boot Admin 用于监控基于 Spring Boot 的应用，它是在 Spring Boot Actuator 的基础上提供简洁的可视化 WEB UI。</td>
+<td>无</td>
+</tr>
+<tr>
+<td>方案二</td>
+<td>SkyWalking</td>
+<td>SkyWalking 是观察性分析平台和应用性能管理系统。提供分布式追踪、服务网格遥测分析、度量聚合和可视化一体化解决方案。</td>
+<td>无</td>
+</tr>
+<tr>
+<td>方案三</td>
+<td>Pinpoint</td>
+<td>Pinpoint是一个开源的APM(应用程序性能管理)工具，用于用Java编写的大型分布式系统。</td>
+<td>搭建、维护困难</td>
+</tr>
+<tr>
+<td>方案四</td>
+<td>CAT</td>
+<td>CAT基于Java开发的实时监控平台，主要包括移动端监控，应用侧监控，核心网络层监控，系统层监控等。</td>
+<td>由于对代码入侵较高，接入困难，暂时废弃</td>
+</tr>
+</tbody>
+</table>
+<h1 id="方案对比"><a href="#方案对比" class="headerlink" title="方案对比"></a>方案对比</h1><h2 id="功能对比"><a href="#功能对比" class="headerlink" title="功能对比"></a>功能对比</h2><table>
+<thead>
+<tr>
+<th>功能</th>
+<th>Spring Boot Admin</th>
+<th>SkyWalking</th>
+<th>Pinpoint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>数据持久化</td>
+<td>不支持</td>
+<td>支持（包括历史数据检索）</td>
+<td>支持（包括历史数据检索）</td>
+</tr>
+<tr>
+<td>JVM信息</td>
+<td>支持</td>
+<td>支持</td>
+<td>支持</td>
+</tr>
+<tr>
+<td>线程信息</td>
+<td>支持</td>
+<td>不支持</td>
+<td>支持</td>
+</tr>
+<tr>
+<td>GC信息</td>
+<td>支持</td>
+<td>支持</td>
+<td>支持</td>
+</tr>
+<tr>
+<td>API调用信息</td>
+<td>支持（较详细）</td>
+<td>支持</td>
+<td>支持（较详细）</td>
+</tr>
+<tr>
+<td>TOP指标</td>
+<td>不支持</td>
+<td>TOP耗时</td>
+<td>TOP耗时</td>
+</tr>
+<tr>
+<td>接口成功率</td>
+<td>不支持</td>
+<td>支持</td>
+<td>支持</td>
+</tr>
+<tr>
+<td>告警</td>
+<td>支持</td>
+<td>支持</td>
+<td>支持</td>
+</tr>
+<tr>
+<td>链路追踪</td>
+<td>不支持</td>
+<td>支持</td>
+<td>支持</td>
+</tr>
+<tr>
+<td>Dashboard</td>
+<td>较简单</td>
+<td>较丰富</td>
+<td>较丰富</td>
+</tr>
+</tbody>
+</table>
+<h2 id="非功能对比"><a href="#非功能对比" class="headerlink" title="非功能对比"></a>非功能对比</h2><table>
+<thead>
+<tr>
+<th>功能</th>
+<th>Spring Boot Admin</th>
+<th>SkyWalking</th>
+<th>Pinpoint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>高并发下对性能影响</td>
+<td></td>
+<td>小</td>
+<td>大</td>
+</tr>
+<tr>
+<td>代码侵入</td>
+<td>低</td>
+<td>无</td>
+<td>无</td>
+</tr>
+<tr>
+<td>接入难度</td>
+<td>简单</td>
+<td>简单</td>
+<td>简单</td>
+</tr>
+<tr>
+<td>搭建难度</td>
+<td>简单</td>
+<td>较复杂（可使用ES、MySQL、H2等）</td>
+<td>复杂（只能使用HBase）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="接入方式"><a href="#接入方式" class="headerlink" title="接入方式"></a>接入方式</h3><p>①. Spring Boot Admin需在应用添加相应依赖（依赖版本和Spring Boot版本对应）及设置相应配置项，示例如下：<br></p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&lt;dependency&gt;</span><br><span class="line">    &lt;groupId&gt;de.codecentric&lt;/groupId&gt;</span><br><span class="line">    &lt;artifactId&gt;spring-boot-admin-starter-client&lt;/artifactId&gt;</span><br><span class="line">    &lt;version&gt;2.1.6&lt;/version&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">spring:</span><br><span class="line">  application:</span><br><span class="line">    name: admin-client</span><br><span class="line">  boot:</span><br><span class="line">    admin:</span><br><span class="line">      client:</span><br><span class="line">        url: http://localhost:8769</span><br><span class="line">        #username: admin</span><br><span class="line">        #password: 123456</span><br><span class="line">server:</span><br><span class="line">  port: 8768</span><br><span class="line"> </span><br><span class="line">management:</span><br><span class="line">  endpoints:</span><br><span class="line">    web:</span><br><span class="line">      exposure:</span><br><span class="line">        include: &apos;*&apos;</span><br><span class="line">  endpoint:</span><br><span class="line">    health:</span><br><span class="line">      show-details: ALWAYS</span><br></pre></td></tr></table></figure>
+<p>②.Skywalking需打包相应agent包，并设置启动参数，示例如下：<br></p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line"># 设置Skywalking agent路径</span><br><span class="line">-javaagent:D:\works\codes\agent\skywalking-agent.jar</span><br><span class="line"># Skywalking UI上展示名字</span><br><span class="line">-Dskywalking.agent.service_name=apm-client-demo</span><br><span class="line"># Skywalking 服务器地址</span><br><span class="line">-Dskywalking.collector.backend_service=192.168.77.128:11800</span><br></pre></td></tr></table></figure>
+<h2 id="体验总结"><a href="#体验总结" class="headerlink" title="体验总结"></a>体验总结</h2><p><strong>Spring Boot Admin：</strong></p>
+<ul>
+<li>不支持数据持久化（也就不支持历史数据查看）</li>
+<li>httptrace默认只保存最近100次请求数据</li>
+<li>不支持指标Top展示</li>
+<li>API错误率指标没有直观展示出来</li>
+<li>应用接入会增加相关依赖</li>
+<li>能监控线程信息</li>
+<li>能查看Bean信息</li>
+<li>能下载Heap Dump</li>
+</ul>
+<p><strong>SkyWalking：</strong></p>
+<ul>
+<li>搭建、维护难度较大</li>
+<li>稳定程度有待提高</li>
+<li>能显示可用性（成功率）</li>
+<li>能监控到DB连接信息</li>
+<li>能显示TOP耗时请求</li>
+<li>能显示整个系统调用拓扑图</li>
+<li>告警可以在服务端进行配置</li>
+</ul>
+<p><strong>Pinpoint：</strong></p>
+<ul>
+<li>搭建、维护难度大（依赖HBase）</li>
+</ul>
+<h2 id="展示"><a href="#展示" class="headerlink" title="展示"></a>展示</h2><p>Spring Boot Admin-实例信息：<br><img src="/images/apm/apm-01-01.png" alt></p>
+<p>Skywalking-实例信息：<br><img src="/images/apm/apm-01-02.png" alt></p>
+<p>Spring Boot Admin-接口信息：<br><img src="/images/apm/apm-01-03.png" alt></p>
+<p>Skywalking-Trace信息：<br><img src="/images/apm/apm-01-04.png" alt></p>
+<p>Skywalking-拓扑图：<br><img src="/images/apm/apm-01-05.png" alt></p>
+]]></content>
+      <categories>
+        <category>apm</category>
+      </categories>
+      <tags>
+        <tag>apm</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Git回滚到特定版本</title>
+    <url>/2019/07/15/Git%E5%9B%9E%E6%BB%9A%E5%88%B0%E7%89%B9%E5%AE%9A%E7%89%88%E6%9C%AC/</url>
+    <content><![CDATA[<h1 id="记在前面"><a href="#记在前面" class="headerlink" title="记在前面"></a>记在前面</h1><p>生产环境上线，运维合代码时，把不该上线的分支合到master了。不该上线的分支测试都没有测，肯定是不符合要求的，需要回滚到特定的版本。<a id="more"></a>当时要着急上线，还好上线前打了tag，我首先从tag新拉了一个分支，让运维用新拉的分支发了个版。保证先上线。具体回滚操作步骤如下：</p>
+<h1 id="操作步骤"><a href="#操作步骤" class="headerlink" title="操作步骤"></a>操作步骤</h1><h2 id="查找commitId"><a href="#查找commitId" class="headerlink" title="查找commitId"></a>查找commitId</h2><p>可以通过命令行或者图形化界面SourceTree查看commitId，找到上一次正常版本里的最后一次提交记录。</p>
+<h3 id="Git-命令行"><a href="#Git-命令行" class="headerlink" title="Git 命令行"></a>Git 命令行</h3><figure class="highlight java"><table><tr><td class="code"><pre><span class="line">$ git log</span><br></pre></td></tr></table></figure>
+<p>git log执行后如下图：</p>
+<p><img src="/images/git/git-log.png" alt></p>
+<p>git log命令行显示不大友好。利用配置git bash命令行可以达到分支图谱可视化的效果，配置如下：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">git config --global alias.lg <span class="string">"log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)&lt;%an&gt;%Creset' --abbrev-commit"</span></span><br></pre></td></tr></table></figure>
+<p>配置好后，执行git lg，如下图：</p>
+<p><img src="/images/git/git-lg.png" alt></p>
+<h3 id="SourceTree"><a href="#SourceTree" class="headerlink" title="SourceTree"></a>SourceTree</h3><p>第二种方法可以利用图形化界面SourceTree（自己用的SourceTree，可以利用其它工具），找到对应图谱，如下图：</p>
+<p><img src="/images/git/source-tree.png" alt></p>
+<p>通过上面的两种方式都可以得到要的commit</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="number">57</span>d6c162ff</span><br></pre></td></tr></table></figure>
+<h2 id="本地回滚"><a href="#本地回滚" class="headerlink" title="本地回滚"></a>本地回滚</h2><p>找到需要回滚的commit，输入git reset –hard {commitId}，将本地文件回滚：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">git reset --hard <span class="number">57</span>d6c162ff</span><br><span class="line"></span><br><span class="line"><span class="comment">// 因为每次上线都会打tag，也可以通过tag本地回滚（前提是打好了tag）</span></span><br><span class="line">git reset --hard tag-<span class="number">20170711</span></span><br></pre></td></tr></table></figure>
+<h2 id="远程回滚"><a href="#远程回滚" class="headerlink" title="远程回滚"></a>远程回滚</h2><p>此时本地文件已经回滚到刚刚commit 57d6c162ff之前的状态，但是服务器仍然没有改变，需要继续远程回滚：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">git push -f</span><br></pre></td></tr></table></figure>
+<p>要把本地的修改强制推送到远程分支上，在强推master时报错，意思是没有权限之类的错误。原因是master分支是保护分支，所以首先要去除master保护分支，才可以强推。</p>
+<p>GitLab修改步骤如下：管理员进入–&gt;进入对应项目–&gt;Settings–&gt;Protected Branches  –&gt;修改。如下图：</p>
+<p><img src="/images/git/git-lab.png" alt></p>
+<p>执行 git push -f 远程回滚成功。</p>
+<p>运维拿着回滚后的master分支再次发版，解决问题。</p>
+]]></content>
+      <categories>
+        <category>git</category>
+      </categories>
+      <tags>
+        <tag>git</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>面试</title>
+    <url>/2019/04/22/%E9%9D%A2%E8%AF%95/</url>
+    <content><![CDATA[<h1 id="记在前面"><a href="#记在前面" class="headerlink" title="记在前面"></a>记在前面</h1><p>记录在面试中遇到过得题目，以及面试他人时常问的题目。<br><a id="more"></a></p>
+<h1 id="java基础"><a href="#java基础" class="headerlink" title="java基础"></a>java基础</h1><h2 id="集合"><a href="#集合" class="headerlink" title="集合"></a>集合</h2><ol>
+<li><p>开发中Java用得比较多的数据结构（集合）有哪些？</p>
+</li>
+<li><p>ArrayList 如何动态扩容的？Arraylist与LinkedList异同？</p>
+</li>
+<li><p>ArrayList是线程安全的吗？</p>
+<p>不安全 原因是add方法 elementData[size++] = e;不是原子操作，当多线程添加的情况下，假如size=0时，添加第一个元素的线程添加成功，同时在size没有及时写到内存中时，这时另一个线程继续添加就覆盖了原来的值。要保证线程安全，可以如下使用： Collections.synchronizedList(new ArrayList&lt;&gt;()); 本质是给ArrayList的每个方法加synchronized关键字，本质是利用Object来上锁。</p>
+<p>ArrayList是线程安全的吗？</p>
+</li>
+<li><p>循环删除list中元素会如下写会发生什么？</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 会抛出 java.util.ConcurrentModificationException异常</span></span><br><span class="line"><span class="keyword">for</span> (String str : list) &#123;   </span><br><span class="line">	<span class="keyword">if</span> (<span class="string">"a"</span>.equals(str)) &#123;</span><br><span class="line">		list.remove(str);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;	</span><br><span class="line"><span class="comment">// 正确移除元素</span></span><br><span class="line">Iterator&lt;String&gt; it = list.iterator();</span><br><span class="line"><span class="keyword">while</span>(it.hasNext()) &#123;</span><br><span class="line">	String str = it.next();</span><br><span class="line">	<span class="keyword">if</span> (<span class="string">"a"</span>.equals(str)) &#123;</span><br><span class="line">		it.remove();</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>谈谈你对HashMap的理解，底层原理的基本实现，hashmap实现原理  put的过程？HashMap怎么解决碰撞问题的？</p>
+</li>
+<li><p>HashMap的遍历有哪两种常用的方法？或者HashMap的操作中，直接使用keySet()遍历有什么问题？</p>
+<p>map.keySet()和map.entrySet()来进行遍历。keySet 先遍历iterator对象，后面再多一步操作hashmap.get(), 第二次遍历只是针对一个bucket的遍历，在hash碰撞不多的情况下性能并不会有大影响。</p>
+</li>
+<li><p>假如你回答HashMap是线程安全的，接着问有没有线程安全的map，接下来问conurren包？</p>
+</li>
+</ol>
+<h2 id="线程池"><a href="#线程池" class="headerlink" title="线程池"></a>线程池</h2><ol>
+<li>平时线程池用的多么？看你项目中有用，讲讲线程池的实现原理。最好用笔简单画下。</li>
+<li>线程池中的corePoolSize和maximumPoolSize有什么不同？</li>
+<li>哪种场景下线程池用完后极速回收？</li>
+</ol>
+<h2 id="并发"><a href="#并发" class="headerlink" title="并发"></a>并发</h2><ol>
+<li><p>synchronized和锁的区别，什么情况下使用synchronized和ReentrantLock？</p>
+<p><a href="https://blog.csdn.net/qq838642798/article/details/65441415" target="_blank" rel="noopener">https://blog.csdn.net/qq838642798/article/details/65441415</a></p>
+</li>
+<li><p>java并发这块了解的怎么样？说说你对volatile关键字的理解？能保证原子性吗？</p>
+</li>
+<li><p>什么是Callable和Future?</p>
+<p>Callable接口类似于Runnable，从名字就可以看出来了，但是Runnable不会返回结果，并且无法抛出返回结果的异常，而Callable功能更强大一些，被线程执行后，可以返回值，这个返回值可以被Future拿到，也就是说，Future可以拿到异步执行任务的返回值。可以认为是带有回调的Runnable。</p>
+<p>Callable接口代表一段可以调用并返回结果的代码;Future接口表示异步任务，是还没有完成的任务给出的未来结果。所以说Callable用于产生结果，Future用于获取结果。</p>
+</li>
+<li></li>
+</ol>
+<h2 id="反射"><a href="#反射" class="headerlink" title="反射"></a>反射</h2><ol>
+<li><p>反射讲一讲，主要是概念, 都在哪需要反射机制？</p>
+<p>对于任意一个类，都能够知道这个类的所有属性和方法（成员变量和函数）；对于任意一个对象，都能够调用它的任意一个方法和属性。<br>编译时刻加载类是静态加载类<br>运行时刻加载类是动态加载类<br>new 创建对象  是静态加载类，在编译时刻就需要加载    所有可能使用到的类动态加载类，在运行时加载功能性的类设计时 动态加载Class c = Class.forName(args[0]) ；反射的操作都是编译之后的操作，编译之后集合是去泛型化的。java中集合的泛型，是防止错误输入的，只在编译阶段有效，绕过编译就无效了。</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// Foo的实例对象如何表示</span></span><br><span class="line">Foo foo1 = <span class="keyword">new</span> Foo();</span><br><span class="line"><span class="comment">// Foo这个类 也是一个实例对象，Class类的实例对象,如何表示呢</span></span><br><span class="line"><span class="comment">// 任何一个类都是Class的实例对象，这个实例对象有三种表示方式</span></span><br><span class="line"><span class="comment">// 第一种表示方式---&gt;实际在告诉我们任何一个类都有一个隐含的静态成员变量class</span></span><br><span class="line">Class c1 = Foo.class;</span><br><span class="line"><span class="comment">// 第二中表达方式  已经知道该类的对象通过getClass方法</span></span><br><span class="line">Class c2 = foo1.getClass();</span><br><span class="line"><span class="comment">/*官网 c1 ,c2 表示了Foo类的类类型(class type)</span></span><br><span class="line"><span class="comment">* 万事万物皆对象，</span></span><br><span class="line"><span class="comment">* 类也是对象，是Class类的实例对象</span></span><br><span class="line"><span class="comment">* 这个对象我们称为该类的类类型 </span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"><span class="comment">// 不管c1  or c2都代表了Foo类的类类型，一个类只可能是Class类的一个实例对象</span></span><br><span class="line"><span class="comment">// 第三种表达方式</span></span><br><span class="line">Class c3 = Class.forName(<span class="string">"com.imooc.reflect.Foo"</span>);</span><br><span class="line"><span class="comment">// 我们完全可以通过类的类类型创建该类的对象实例----&gt;通过c1 or c2 or c3创建Foo的实例对象</span></span><br><span class="line"><span class="comment">// 需要有无参数的构造方法</span></span><br><span class="line">Foo foo = (Foo)c1.newInstance();</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>反射的性能，如何优化？</p>
+<ul>
+<li>由于JDK的安全检查耗时较多所以通过setAccessible(true)的方式关闭安全检查就可以达到提升反射速度的目的   性能有了20倍的提升；</li>
+<li>缓存大法  多次动态创建一个类的实例的时候，有缓存的写法会比没有缓存要快很多。</li>
+</ul>
+</li>
+</ol>
+<h2 id="设计模式"><a href="#设计模式" class="headerlink" title="设计模式"></a>设计模式</h2><ol>
+<li><p>能否手写个单例模式的？</p>
+</li>
+<li><p>装饰者模式</p>
+</li>
+</ol>
+<h1 id="框架"><a href="#框架" class="headerlink" title="框架"></a>框架</h1><h2 id="spring"><a href="#spring" class="headerlink" title="spring"></a>spring</h2><ol>
+<li><p>spring  ioc  aop 说下原理，理解，aop jdk 和cglib区别，spring选择什么，spring ioc用了什么模式，带来了什么效果？</p>
+</li>
+<li><p>spring有几种注入方式？</p>
+<p>三种注入方式，构造器、接口、set注入，我们常用的是set注入。</p>
+</li>
+</ol>
+<h2 id="springboot"><a href="#springboot" class="headerlink" title="springboot"></a>springboot</h2><ol>
+<li><p>项目中有用springboot，为什么用用springboot？</p>
+<ul>
+<li>上手容易</li>
+<li>独立运行</li>
+<li>简化配置</li>
+<li>自动配置</li>
+<li>应用监控</li>
+</ul>
+</li>
+<li><p>springboot 的配置文件有哪几种格式？它们有什么区别？</p>
+<p>.properties 和 .yml，它们的区别主要是书写格式不同。</p>
+</li>
+<li><p>springboot 的核心注解是哪个？它主要由哪几个注解组成的？</p>
+<p>核心注解：@SpringBootApplication ，由三个注解组合而成</p>
+<ul>
+<li>@SpringBootConfiguration：组合了 @Configuration 注解，实现配置文件的功能。</li>
+<li>@EnableAutoConfiguration：打开自动配置的功能，也可以关闭某个自动配置的选项。</li>
+<li>@ComponentScan：Spring组件扫描。</li>
+</ul>
+</li>
+<li><p>springboot 自动配置原理是什么？</p>
+</li>
+<li><p>springboot可以兼容老 Spring 项目吗，如何做？</p>
+<p>可以兼容，使用 @ImportResource 注解导入老 Spring 项目配置文件。</p>
+</li>
+</ol>
+<h2 id="springmvc"><a href="#springmvc" class="headerlink" title="springmvc"></a>springmvc</h2><ol>
+<li>springmvc原理，流程？</li>
+</ol>
+<h2 id="mybatis"><a href="#mybatis" class="headerlink" title="mybatis"></a>mybatis</h2><ol>
+<li><p>#{}和${}的区别是什么？</p>
+<p>#{}是预编译处理，${}是字符串替换。Mybatis在处理#{}时，会将sql中的#{}替换为?号，调用PreparedStatement的set方法来赋值。Mybatis在处理${}时，就是把${}替换成变量的值。使用#{}可以有效的防止SQL注入，提高系统安全性。</p>
+</li>
+<li><p>mybatis提供了哪些动态sql标签？</p>
+<p>mybatis提供了9种动态sql标签：trim | where | set | foreach | if | choose | when | otherwise | bind。</p>
+</li>
+</ol>
+<h1 id="JVM"><a href="#JVM" class="headerlink" title="JVM"></a>JVM</h1><ol>
+<li><p>参数设置</p>
+<ul>
+<li>-Xms  堆的最小值   </li>
+<li>-Xmx  堆的最大值</li>
+<li>-Xmn  新生代容量</li>
+<li>-Xss  设置栈容量</li>
+<li>-XX：PermSize   -XXMaxPermSize  限制方法区的大小</li>
+<li>-XX:MaxTenuringThreshold  动态对象年龄判断</li>
+<li>-XX:SurviorRatio  Eden与Survivor区的比例</li>
+<li>-XX:PretenureSizeThreshold  晋升老年代对象年龄</li>
+</ul>
+</li>
+<li><p>垃圾收集算法有哪些？</p>
+<ul>
+<li>标记-清除算法：最基础的收集算法，分为两个阶段 标记和清除 （ 缺点  效率不高，标记和清除两个过程效率都不高； 空间问题 内存产生大量不连续的内存碎片，导致大对象无法找到足够连续的内存而不得不出发另一次垃圾收集）</li>
+<li>复制算法：解决效率问题   将内存划分为大小相等的两块，每次只使用其中的一块，当这一块的内存用完了，就将还存活的对象复制到另一块上面，然后将已使用过的内存空间一次清理掉。 代价是将内存缩小了一倍。新生代98%是朝生夕死的，内存分为一块较大的Eden 空间和两块较小的Survivor空间，每次使用Eden和其中一块Survivor，回收时，将Eden和Survivor中还存活的对象一次复制到另一块Survivor空间上，最后清理掉Eden和刚用过的Survivor空间。Hotspot默认Eden和Survivor的大小比例是8：1</li>
+<li>标记-整理算法：复制算法在对象存活率较高时就要进行复制操作，效率将会遍低。更关键的是不想浪费空间就需要额外空间进行担保，以应对内存中所有对象都100%存活的极端情况。根据老年代的特定标记过程一样，后续操作是让所有存活的对象都向一边移动，然后直接清理掉端边界以外的内存。    </li>
+</ul>
+</li>
+<li><p>对象的内存布局  由几部分构成？</p>
+<p>对象在内存中存储的布局可以分为3块区域：对象头(Header)、实例数据(Instance Data)和对齐填充(Padding)。</p>
+</li>
+<li><p>对象已死吗？如何判断？ GC Roots  有哪些？</p>
+<p>用到了什么 可达性分析算法 （Reachability Analysiss）</p>
+<ul>
+<li>虚拟机栈（栈帧中的本地变量表）中引用的对象</li>
+<li>方法区中类静态属性引用的对象</li>
+<li>方法区中常量引用的对象</li>
+<li>本地方法栈中JNI（Native方法）引用的对象</li>
+</ul>
+</li>
+<li><p>JVM中，如果把堆内存参数配置的超过了本地内存，会怎么样？ </p>
+<p>应用运行不了。</p>
+<ul>
+<li><p>windows下：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">Error occurred during initialization of VM </span><br><span class="line">Could not reserve enough space <span class="keyword">for</span> object heap</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>linux下：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">error=<span class="string">'Cannot allocate memory'</span></span><br><span class="line">hs_err_pid1288.log</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+</li>
+<li><p>类加载器</p>
+<p>双亲委派模型的工作过程是：如果一个类加载器收到了类加载的请求，它首先不会自己去尝试加载这个类，而是把这个请求委派给父类加载器去完成，每一个层次的类加载器都是如此，因此所有的加载请求最终都应该传送到顶层的启动类加载器中，只有当父加载器反馈自己无法完成这个加载请求（它的搜索范围中没有找到所需的类）时，子加载器才会尝试自己去加载。</p>
+<p>好处：就是Java类随着它的类加载器一起具备了一种带有优先级的层次关系 。Object类在程序的各种类加载器环境中都是同一个类。反之，不使用，Java类型体系中最基础的行为也就无法保证，应用程序也将会变得一片混乱</p>
+</li>
+<li><p>什么时候触发minor GC 什么时候触发full GC？</p>
+<p>从年轻代空间（包括 Eden 和 Survivor 区域）回收内存被称为 Minor GC；</p>
+<p>对老年代GC称为Major GC；</p>
+<p>而Full GC是对整个堆来说的；</p>
+<p>Minor GC触发条件：当Eden区满时，触发Minor GC。</p>
+<p>Full GC触发条件：</p>
+<ul>
+<li>System.gc()方法的调用   </li>
+<li>老年代空间不足</li>
+<li>方法区空间不足</li>
+<li>通过Minor GC后进入老年代的平均大小大于老年代的可用内存</li>
+<li>由Eden区、From Space区向To Space区复制时，对象大小大于To Space可用内存，则把该对象转存到老年代，且老年代的可用内存小于该对象大小</li>
+</ul>
+<h1 id="redis"><a href="#redis" class="headerlink" title="redis"></a>redis</h1><ol>
+<li><p>看项目中用过redis。redis有什么数据类型？</p>
+<p>主要由五种：String、Hash、List、Set和Sorted Set</p>
+</li>
+<li><p>看项目中用过redis，用作缓存，哪种场景下适合用缓存？缓存击穿？</p>
+</li>
+<li><p>知道redis的持久化吗？都有什么缺点和有点？具体底层实现呢？</p>
+<p>RDB快照和AOF日志</p>
+<ul>
+<li>RDB：Redis借助了fork命令的copy on write机制  在生成快照时，将当前进程fork出一个子进程，然后在子进程中循环所有的数据，将数据写成为RDB文件缺点：rdb有他的不足，就是一旦数据库出现问题，那么我们的RDB文件中保存的数据并不是全新的，从上次RDB文件生成到Redis停机这段时间的数据全部丢掉了。</li>
+<li>AOF：AOF日志的全称是append only file，它是一个追加写入的日志文件 对于那些无法忍数据丢失的应用，建议使用AOF日志。</li>
+</ul>
+</li>
+<li><p>redis过期策略都有哪些？LRU？写一个java版本的代码吧？ </p>
+<p> 惰性删除 + 定期删除    </p>
+<p> 被动删除：当读/写一个已经过期的key时，会触发惰性删除策略，直接删除掉这个过期key</p>
+<p>主动删除：由于惰性删除策略无法保证冷数据被及时删掉，所以Redis会定期主动淘汰一批已过期的key。当前已用内存超过maxmemory限定时，触发主动清理策略。</p>
+<p>当Redis内存使用达到maxmemory时，需要选择设置好的maxmemory-policy进行对老数据的置换</p>
+<ul>
+<li><p>noeviction: 不进行置换，表示即使内存达到上限也不进行置换，所有能引起内存增加的命令都会返回error</p>
+</li>
+<li><p>allkeys-lru: 优先删除掉最近最不经常使用的key，用以保存新数据</p>
+</li>
+<li><p>volatile-lru: 只从设置失效（expire set）的key中选择最近最不经常使用的key进行删除，用以保存新数据</p>
+</li>
+<li><p>allkeys-random: 随机从all-keys中选择一些key进行删除，用以保存新数据</p>
+</li>
+<li><p>volatile-random: 只从设置失效（expire set）的key中，选择一些key进行删除，用以保存新数据</p>
+</li>
+<li><p>volatile-ttl: 只从设置失效（expire set）的key中，选出存活时间（TTL）最短的key进行删除，用以保存新数据</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="title">LRULinkedHashMap</span><span class="params">(<span class="keyword">int</span> maxCapacity)</span> </span>&#123; </span><br><span class="line">	<span class="keyword">super</span>(maxCapacity, DEFAULT_LOAD_FACTOR, <span class="keyword">true</span>); </span><br><span class="line">	<span class="keyword">this</span>.maxCapacity = maxCapacity; </span><br><span class="line">&#125; </span><br><span class="line"><span class="meta">@Override</span> </span><br><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">boolean</span> <span class="title">removeEldestEntry</span><span class="params">(java.util.Map.Entry&lt;K, V&gt; eldest)</span> </span>&#123; </span><br><span class="line">	<span class="keyword">return</span> size() &gt; maxCapacity; </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+</li>
+<li><p>使用redis如何设计分布式锁？使用zk可以吗？如何实现？这两种哪个效率高？</p>
+<p>redis锁定的原理是利用setnx命令，即只有在某个key不存在情况才能set成功该key。这样就达到了多个进程并发去set同一个key，只有一个进程能set成功。</p>
+</li>
+<li><p>zookeeper实现了类似paxos协议，是一个拥有多个节点分布式协调服务？</p>
+<p>zookeeper实现锁的方式是客户端一起竞争写某条数据，比如/path/lock，只有第一个客户端能写入成功，其他的客户端都会写入失败。写入成功的客户端就获得了锁，写入失败的客户端，注册watch事件，等待锁的释放，从而继续竞争该锁。</p>
+</li>
+</ol>
+</li>
+</ol>
+<h1 id="数据库"><a href="#数据库" class="headerlink" title="数据库"></a>数据库</h1><ol>
+<li><p>数据库索引问题，就是最左前缀问题  联合索引 (A.B)，查询时where B =  会走索引吗，where A = 会走吗？</p>
+<p>最左前缀匹配问题。</p>
+</li>
+<li><p>创建复合索引时应该将最常用作限制条件的列放在最左边，依次递减。不要过度索引</p>
+</li>
+<li><p>sql优化有哪些思路？</p>
+<p>应尽量避免全表扫描，首先应考虑在 where 及 order by ,group by 涉及的列上建立索引。最左前缀匹配原则，非常重要的原则，mysql会一直向右匹配直到遇到范围查询(&gt;、&lt;、between、like)就停止匹配</p>
+</li>
+<li><p>设计高并发系统数据库层面该怎么设计？数据库锁有哪些类型？如何实现？</p>
+<ul>
+<li><p>数据库服务器采用集群方式部署。</p>
+</li>
+<li><p>数据库层面，主要就是用到垂直分库，水平分库， 读写分离，热备份等技术，提高数据库的读写能力</p>
+</li>
+</ul>
+</li>
+<li><p>数据库锁？</p>
+<p>悲观锁 for update</p>
+<p>乐观锁  版本号    CAS</p>
+</li>
+<li><p>数据库事务有哪些？</p>
+<p>事务应该具有4个属性：原子性、一致性、隔离性、持久性。这四个属性通常称为ACID特性</p>
+<ul>
+<li>原子性（Atomicity）：事务作为一个整体被执行，包含在其中的对数据库的操作要么全部被执行，要么都不执行。</li>
+<li>一致性（Consistency）：事务应确保数据库的状态从一个一致状态转变为另一个一致状态。一致状态的含义是数据库中的数据应满足完整性约束。</li>
+<li>隔离性（Isolation）：一个事务的执行不能被其他事务干扰。</li>
+<li>持久性（Durability）：一个事务一旦提交，他对数据库的修改应该永久保存在数据库中</li>
+</ul>
+</li>
+<li><p>为什么要分库分表？</p>
+<p>性能问题，索引问题等</p>
+</li>
+<li><p>分库分表方案应该尽量避免的两个问题？</p>
+<p>数据迁移 热点  </p>
+</li>
+<li><p>如何设计可以动态扩容缩容的分库分表方案？</p>
+</li>
+</ol>
+<h1 id="网络"><a href="#网络" class="headerlink" title="网络"></a>网络</h1><ol>
+<li><p>cookie与session区别 ?</p>
+</li>
+<li><p>post与get区别 ?</p>
+</li>
+<li><p>一个网址url从浏览器中输入后发生了什么？</p>
+</li>
+</ol>
+<h1 id="客观"><a href="#客观" class="headerlink" title="客观"></a>客观</h1><ol>
+<li>客观印象最深的bug是什么？如何解决的？如何防止？</li>
+<li>如何学习一个新技术，团队需要有人来学习，有没有自己的方法论？    </li>
+</ol>
+]]></content>
+      <categories>
+        <category>面试</category>
+      </categories>
+      <tags>
+        <tag>面试</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>走在自己的时区里</title>
+    <url>/2019/03/31/%E8%B5%B0%E5%9C%A8%E8%87%AA%E5%B7%B1%E7%9A%84%E6%97%B6%E5%8C%BA%E9%87%8C/</url>
+    <content><![CDATA[<p>最近在美国很火的一首小诗。<br><a id="more"></a></p>
+<p>在时间上，纽约走在加州前面三个小时，<br>New York is 3 hours ahead of California,</p>
+<p>但加州并没有变慢。<br>but it does not make California slow.</p>
+<p>有人22岁就毕业了，<br>Someone graduated at the age of 22,</p>
+<p>但等了五年才找到好工作！<br>but waited 5 years before securing a good job!</p>
+<p>有人25岁就当上了CEO，<br>Someone became a CEO at 25,</p>
+<p>却在50岁去世了。<br>and died at 50.</p>
+<p>也有人直到50岁才当上CEO，<br>While another became a CEO at 50,</p>
+<p>最后活到90岁。<br>and lived to 90 years.</p>
+<p>有人依然单身，<br>Someone is still single,</p>
+<p>而别人却早已结婚。<br>while someone else got married.</p>
+<p>奥巴马55岁退任总统，<br>Obama retires at 55,</p>
+<p>而川普却是70岁才开始当。<br>but Trump starts at 70.</p>
+<p>世上每个人都有自己的发展时区。<br>Absolutely everyone in this world works based on their Time Zone.</p>
+<p>身边有些人看似走在你前面，<br>People around you might seem to go ahead of you,</p>
+<p>也有人看似走在你后面。<br>some might seem to be behind you.</p>
+<p>但其实每个人在自己的时区有自己的步程。<br>But everyone is running their own RACE, in their own TIME.</p>
+<p>不用嫉妒或嘲笑他们。<br>Don’t envy them or mock them.</p>
+<p>他们都在各自的时区，你在你的！<br>They are in their TIME ZONE, and you are in yours!</p>
+<p>所以，别放弃。<br>So, Never Give up</p>
+<p>你没有落后，<br>You’re not LATE.</p>
+<p>你没有领先。<br>You’re not EARLY.</p>
+<p>在命运为你安排的属于你自己的时区里，一切都非常准时。<br>You are very much ON TIME, and in your TIME ZONE Destiny set up for you.</p>
+<p>再好，别忘了危机与奋斗，<br>Keep fighting and stay alert, no matter how good;</p>
+<p>再难，别忘了梦想与坚持，<br>Keep dreaming and carry on, no matter how hard;</p>
+<p>再忙，别忘了读书与锻炼，<br>Keep reading and exercising, no matter how busy;</p>
+<p>人生，就是一场长跑。<br>Life is a long run.</p>
+]]></content>
+      <categories>
+        <category>思考</category>
+      </categories>
+      <tags>
+        <tag>思考</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Java8 Lambda 表达式</title>
+    <url>/2019/03/10/Java8%20Lambda%20%E8%A1%A8%E8%BE%BE%E5%BC%8F/</url>
+    <content><![CDATA[<h1 id="记在前面"><a href="#记在前面" class="headerlink" title="记在前面"></a>记在前面</h1><p>使用Java8已有一段时间，工作中会用到Lambda 表达式，给人的直观感受是代码更加清晰简洁。在此做个记录。<br><a id="more"></a></p>
+<h1 id="概念"><a href="#概念" class="headerlink" title="概念"></a>概念</h1><h2 id="Lambda-表达式"><a href="#Lambda-表达式" class="headerlink" title="Lambda 表达式"></a>Lambda 表达式</h2><p>Lambda表达式可以理解为一种匿名函数：它没有名称，但有参数列表、函数主体、返回类型，可能还有一个可以抛出的异常的列表。基本语法如下：</p>
+<p>(参数列表 parameters) -&gt; 表达式 expression)   或者</p>
+<p>(参数列表 parameters) -&gt; { 语句 statements;  }</p>
+<h2 id="函数式接口"><a href="#函数式接口" class="headerlink" title="函数式接口"></a>函数式接口</h2><p>函数式接口就是仅仅声明了一个抽象方法的接口。</p>
+<h2 id="方法引用"><a href="#方法引用" class="headerlink" title="方法引用"></a>方法引用</h2><p>::方法引用基本思想是：如果一个Lambda代表的只是直接调用这个方法，那最好还是用名称来调用它，而不是去描述如何调用它。</p>
+<p>可以看做式仅仅调用特定方法的Lambda的一种快捷写法。可以看作是针对仅仅涉及单一方法的Lambda的<strong>语法糖</strong>，因为你表达同样的事情时要写的代码更少了。</p>
+<p>eg：Apple::getWeight  就是  (Apple a) -&gt; a.getWeight() 的快捷写法。</p>
+<h2 id="类型推断"><a href="#类型推断" class="headerlink" title="类型推断"></a>类型推断</h2><p>Java编译器会从上下文推断出用什么函数式接口来配合Lambda表达式。意味着Lambda语法中可以省去标注参数类型。</p>
+<p><strong>注意：</strong>有时候显式写出类型更易读，有时候去掉他们更易读。没有什么法则说哪种更好，对于如何让代码更易读，我们必须做出自己的选择。</p>
+<h2 id="流"><a href="#流" class="headerlink" title="流"></a>流</h2><p>流允许以声明性方式处理数据集合。你只需要表达你需要什么。而不是像传统那样关心如何实现。</p>
+<h1 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h1><h2 id="list转map"><a href="#list转map" class="headerlink" title="list转map"></a>list转map</h2><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 查询获取list</span></span><br><span class="line">List&lt;BankQueryStat&gt; waitList = bankQueryStatDao.queryWaitStatInfo(statDate);</span><br><span class="line"><span class="comment">// list转map</span></span><br><span class="line">Map&lt;Long, BankQueryStat&gt; waitMap = waitList.stream()</span><br><span class="line">    .collect(Collectors.toMap(BankQueryStat::getBankOperatorId, Function.identity()));</span><br></pre></td></tr></table></figure>
+<h2 id="列表中是否包含"><a href="#列表中是否包含" class="headerlink" title="列表中是否包含"></a>列表中是否包含</h2><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 列表中是否包含QAV资料</span></span><br><span class="line"><span class="keyword">boolean</span> isUploadQAV = videoList != <span class="keyword">null</span> &amp;&amp; videoList.stream()</span><br><span class="line">	.anyMatch(m -&gt; StringUtils.equals(m.getCode(), QAV));</span><br></pre></td></tr></table></figure>
+<h2 id="列表中过移除掉元素"><a href="#列表中过移除掉元素" class="headerlink" title="列表中过移除掉元素"></a>列表中过移除掉元素</h2><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 列表中移除QAV资料</span></span><br><span class="line">List&lt;String&gt; codeList = codeList.stream()</span><br><span class="line">	.filter(m -&gt; !StringUtils.equals(m, QAV)).collect(Collectors.toList());</span><br></pre></td></tr></table></figure>
+<h2 id="列表单列求和"><a href="#列表单列求和" class="headerlink" title="列表单列求和"></a>列表单列求和</h2><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 查询获取列表</span></span><br><span class="line">List&lt;VideoStatVo&gt; statList = cloudroomStatusStatDao.queryList(queryVo);</span><br><span class="line">VideoStatVo totalVo = <span class="keyword">new</span> VideoStatVo();</span><br><span class="line"><span class="keyword">if</span> (!statList.isEmpty()) &#123;</span><br><span class="line">    <span class="comment">// 对statList单列totalNum求和</span></span><br><span class="line">	totalVo.setTotalNum(statList.stream().mapToLong(VideoStatVo::getTotalNum).sum());  </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>]]></content>
+      <categories>
+        <category>java</category>
+      </categories>
+      <tags>
+        <tag>java</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>nginx 记录</title>
+    <url>/2018/11/20/nginx%20%E8%AE%B0%E5%BD%95/</url>
+    <content><![CDATA[<h1 id="反向代理"><a href="#反向代理" class="headerlink" title="反向代理"></a>反向代理</h1><p>我们通常称 Nginx 是一个反向代理服务器，那么到底什么是反向代理，什么是正向代理？<a id="more"></a><br>可以这样理解：主要区别在于，到底是客户端还是服务器做的代理。<br>如果是客户端发送请求时使用的代理，就是正向代理；<br>而服务器端接收到客户端的请求时使用代理转移到其他服务器则是反向代理。</p>
+<p>A找B直接沟通，这就等于没有什么代理；而中间夹一个传话的C，C就是代理了，A通过C把信息传递给B，然后C再把B的反馈转达给A。<br>对于ABC例子，正向代理可以理解为:C作为A的代理人去找B，而反向代理中的C更像是B的代理人，去向A做反馈</p>
+<h1 id="nginx重启"><a href="#nginx重启" class="headerlink" title="nginx重启"></a>nginx重启</h1><figure class="highlight java"><table><tr><td class="code"><pre><span class="line">nginx -s reload</span><br></pre></td></tr></table></figure>
+]]></content>
+      <categories>
+        <category>nginx</category>
+      </categories>
+      <tags>
+        <tag>nginx</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Hashmap 记录</title>
+    <url>/2018/07/29/Hashmap%20%E8%AE%B0%E5%BD%95/</url>
+    <content><![CDATA[<h1 id="记在前面"><a href="#记在前面" class="headerlink" title="记在前面"></a>记在前面</h1><p>注：源代码基于 Java 1.8。<br>Hashmap继承了AbstractMap，实现了Map接口。Hashmap在工作中经常用到，类图如下：<br><img src="/images/java/collection/hashmap-uml.png" alt><br><a id="more"></a></p>
+<h1 id="put方法"><a href="#put方法" class="headerlink" title="put方法"></a>put方法</h1><p>put过程如图：<img src="/images/java/collection/hashmap-put.png" alt><br>①.判断键值对数组table[i]是否为空或为null，否则执行resize()进行扩容；<br>②.根据键值key计算hash值得到插入的数组索引i，如果table[i]==null，直接新建节点添加，转向⑥，如果table[i]不为空，转向③；<br>③.判断\table[i]的首个元素是否和key一样，如果相同直接覆盖value，否则转向④，这里的相同指的是hashCode以及equals；<br>④.判断table[i] 是否为treeNode，即table[i] 是否是红黑树，如果是红黑树，则直接在树中插入键值对，否则转向⑤；<br>⑤.遍历table[i]，判断链表长度是否大于8，大于8的话把链表转换为红黑树，在红黑树中执行插入操作，否则进行链表的插入操作；\遍历过程中若发现key已经存在直接覆盖value即可；<br>⑥.插入成功后，判断实际存在的键值对数量size是否超多了最大容量threshold，如果超过，进行扩容。</p>
+<h1 id="1-7和1-8有哪些区别"><a href="#1-7和1-8有哪些区别" class="headerlink" title="1.7和1.8有哪些区别"></a>1.7和1.8有哪些区别</h1><ul>
+<li>JDK1.7用的是头插法，而JDK1.8及之后使用的都是尾插法。原因，JDK1.7是用单链表进行的纵向延伸，当采用头插法就是能够提高插入的效率，新插入的元素总是在链表的头部；JDK1.8之后是因为加入了红黑树使用尾插法，能够避免出现逆序且链表死循环的问题。</li>
+<li>扩容后数据存储位置的计算方式也不一样</li>
+<li>JDK1.7的时候使用的是数组+ 单链表的数据结构。但是在JDK1.8及之后时，使用的是数组+链表+红黑树的数据结构（当链表的深度达到8的时候，也就是默认阈值，就会自动扩容把链表转成红黑树的数据结构来把时间复杂度从O（n）变成O（nlogN）提高了效率）</li>
+</ul>
+<h1 id="常规问题"><a href="#常规问题" class="headerlink" title="常规问题"></a>常规问题</h1><h2 id="keySet"><a href="#keySet" class="headerlink" title="keySet"></a>keySet</h2><p>HashMap的操作中，直接使用keySet()遍历有什么问题？<br>keySet()遍历更慢，entrySet 会更快，直接遍历iterator所以对象，取出value。keySet()会多一次遍历，先遍历iterator所以对象，后面再多一步操作hashmap.get(), 第二次遍历只是针对一个bucket的遍历，可以理解在hash碰撞不多的情况下性能并不会有大影响。<br>直接输出keySet时，其实keySet继承自AbstractSet，而AbstractSet又继承自AbstractCollection，bstractCollection又重写了Object类的toString()方法，会用iterator。因此在输出时调用了AbstractCollection.java类中的toString方法，重写的toString()方法又调用了iterator，从而迭代取出结果拼接成字符串。</p>
+<h2 id="key能否为null"><a href="#key能否为null" class="headerlink" title="key能否为null"></a>key能否为null</h2><p>key可以为空，因为当key为空时，hash指默认为0，只能有一个key为null<br><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> <span class="title">hash</span><span class="params">(Object key)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">int</span> h;</span><br><span class="line">    <span class="keyword">return</span> (key == <span class="keyword">null</span>) ? <span class="number">0</span> : (h = key.hashCode()) ^ (h &gt;&gt;&gt; <span class="number">16</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h2 id="两个key的hashcode相同，如何获取对象"><a href="#两个key的hashcode相同，如何获取对象" class="headerlink" title="两个key的hashcode相同，如何获取对象"></a>两个key的hashcode相同，如何获取对象</h2><p>当我们调用get()方法，HashMap会使用键对象的hashcode找到bucket位置，找到bucket位置之后，会调用keys.equals()方法去找到链表中正确的节点，最终找到要找的值对象。</p>
+]]></content>
+      <categories>
+        <category>java</category>
+      </categories>
+      <tags>
+        <tag>java</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Redis缓存击穿</title>
+    <url>/2018/06/24/Redis%E7%BC%93%E5%AD%98%E7%A9%BF%E9%80%8F/</url>
+    <content><![CDATA[<h1 id="记在前面"><a href="#记在前面" class="headerlink" title="记在前面"></a>记在前面</h1><p>今天用到redis缓存过期时间，突然想到之前面试时问到缓存击穿问题。当时给的解决方案只是曲线救国罢了，在此记录一下：<br><a id="more"></a></p>
+<h1 id="缓存击穿"><a href="#缓存击穿" class="headerlink" title="缓存击穿"></a>缓存击穿</h1><p>应用中有一些访问量很高的热点数据，我们一般会将其放在缓存中以提高访问速度。另外，为了保持时效性，我们通常还会设置一个过期时间。设置了过期时间的cache，在它过期那一刻，海量的请求会直连DB，DB负载过重问题，甚至导致数据库崩溃。</p>
+<p>记得当时我给的解决方案是异步起任务定时刷新缓存，相当于是不让缓存过期。这个方案其实解决不了全部问题，缓存击穿发生时刻是在缓存KEY的过期瞬间。现在常用的解决方式有如下两种：<strong>互斥锁、永远不过期</strong></p>
+<h2 id="互斥锁"><a href="#互斥锁" class="headerlink" title="互斥锁"></a>互斥锁</h2><p>互斥锁指的是在缓存KEY过期去更新的时候，先让程序去获取锁，只有获取到锁的线程才有资格去更新缓存KEY。其他没有获取到锁的线程则休眠片刻之后再次去获取最新的缓存数据。  </p>
+<p>通过这种方式，同一时刻永远只有一个线程会去读取数据库，这样也就避免了海量数据库请求对于数据库的冲击。  </p>
+<p>而对于上面说到的锁，我们可以使用缓存提供的一些原子操作来完成。对于 redis 缓存来说，我们可以使用其 SETNX 命令来完成。<br><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> String <span class="title">get</span><span class="params">(key)</span> </span>&#123;</span><br><span class="line">     String value = redis.get(key);</span><br><span class="line">     <span class="keyword">if</span> (value == <span class="keyword">null</span>) &#123; <span class="comment">// 缓存过期 </span></span><br><span class="line">         <span class="comment">// 设置1分钟的超时，防止del操作失败的时候，下次缓存过期一直不能load db</span></span><br><span class="line">         <span class="keyword">if</span> (redis.setnx(key_mutex, <span class="number">1</span>, <span class="number">1</span> * <span class="number">60</span>) == <span class="number">1</span>) &#123;  <span class="comment">// 代表设置成功</span></span><br><span class="line">              value = db.get(key);</span><br><span class="line">                     redis.set(key, value, expire_secs);</span><br><span class="line">                     redis.del(key_mutex);</span><br><span class="line">             &#125; <span class="keyword">else</span> &#123;  <span class="comment">// 这个时候代表同时候的其他线程已经load db并回设到缓存了，</span></span><br><span class="line">                       <span class="comment">// 这时候重试获取缓存值即可</span></span><br><span class="line">                     sleep(<span class="number">50</span>);</span><br><span class="line">                     <span class="keyword">this</span>.get(key);  <span class="comment">// 重试</span></span><br><span class="line">             &#125;</span><br><span class="line">         &#125; <span class="keyword">else</span> &#123;      <span class="comment">// 缓存未过期 </span></span><br><span class="line">             <span class="keyword">return</span> value;      </span><br><span class="line">         &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>上面的 key_mutex 其实就是一个普通的 KEY-VALUE 值，我们使用 setnx 命令去设置其值为 1。如果这时候已经有人在更新缓存KEY了，那么 setnx 命令会返回 0，表示设置失败。</p>
+<p>上面的互斥锁整体思路是没有问题的，但有有一个细节问题需要处理：有时发生缓存穿透可能是redis缓存服务宕掉造成的，使用了递归，所以有死循环的风险，所以还应该加一个<strong>最大重试次数(递归深度)</strong>的限制</p>
+<h2 id="永不过期"><a href="#永不过期" class="headerlink" title="永不过期"></a>永不过期</h2><p>从缓存的角度来看，如果你设置了永远不过期，那么就不会有海量请求数据库的情形出现。此时我们一般通过新起一个线程的方式去定时将数据库中的数据更新到缓存中，更加成熟的方式是通过定时任务去同步缓存和数据库的数据。</p>
+<p>但这种方案会出现数据的延迟问题，也就是线程读取到的数据并不是最新的数据。但对于一般的互联网功能来说，些许的延迟还是能接受的。</p>
+<h1 id="缓存穿透"><a href="#缓存穿透" class="headerlink" title="缓存穿透"></a>缓存穿透</h1><p>与缓存穿透有另外两个缓存问题：缓存穿透和缓存雪崩<br>缓存穿透是指查询一个一定不存在的数据，因为这个数据不存在，所以永远不会被缓存，所以每次请求都会去请求数据库。如果某些心怀不轨的人利用这个存在的漏洞去伪造大量的请求，那么很可能导致DB承受不了那么大的流量就挂掉了。<br>对于缓存穿透，有几种解决方案，一种是事前预防，一种是事后预防。</p>
+<h2 id="事前预防"><a href="#事前预防" class="headerlink" title="事前预防"></a>事前预防</h2><p>就是对所有请求都进行参数校验，把绝大多数非法的请求抵挡在最外层。例如对于获取用户信息的接口，我们可以对用户ID进行参数校验，对于用户ID未负数的请求直接拦截。但即使我们做了全面的参数校验，还是可能存在漏网之鱼，这时候就需要进行事后预防。</p>
+<h2 id="事后预防"><a href="#事后预防" class="headerlink" title="事后预防"></a>事后预防</h2><p>对于查询结果为空的请求，我们仍然将这个空的结果进行缓存，但是设置一个很短的过期时间（例如一分钟）。在这里我们可以看到，其实我们并没有完全预防非法请求，只不过是将非法请求的风险让承受能力更强的redis去承担，让承受能力稍弱的数据库更安全。</p>
+<p>通过上面这两种处理方式，我们基本可以解决缓存穿透的问题。事前预防解决80%的非法请求，剩下的20%非法请求则使用Redis转移风险</p>
+<h2 id="布隆过滤器"><a href="#布隆过滤器" class="headerlink" title="布隆过滤器"></a>布隆过滤器</h2><p>采用布隆过滤器，将所有可能存在的数据哈希到一个足够大的bitmap中，一个一定不存在的数据会被 这个bitmap拦截掉，从而避免了对底层存储系统的查询压力。</p>
+<h3 id="实现原理"><a href="#实现原理" class="headerlink" title="实现原理"></a>实现原理</h3><p>布隆过滤器（Bloom Filter）的核心实现是一个超大的位数组和几个哈希函数。假设位数组的长度为m，哈希函数的个数为k。<br><img src="/images/nosql/redis/bloom-filter.png" alt><br>以上图为例，具体的操作流程：假设集合里面有3个元素{x, y, z}，哈希函数的个数为3。首先将位数组进行初始化，将里面每个位都设置位0。</p>
+<h3 id="添加元素"><a href="#添加元素" class="headerlink" title="添加元素"></a>添加元素</h3><p>对于集合里面的每一个元素，将元素依次通过3个哈希函数进行映射，每次映射都会产生一个哈希值，这个值对应位数组上面的一个点，然后将位数组对应的位置标记为1。<br>查询W元素是否存在集合中的时候，同样的方法将W通过哈希映射到位数组上的3个点。如果3个点的其中有一个点不为1，则可以判断该元素一定不存在集合中。反之，如果3个点都为1，则该元素可能存在集合中。注意：此处不能判断该元素是否一定存在集合中，可能存在一定的误判率。可以从图中可以看到：假设某个元素通过映射对应下标为4，5，6这3个点。虽然这3个点都为1，但是很明显这3个点是不同元素经过哈希得到的位置，因此这种情况说明元素虽然不在集合中，也可能对应的都是1，这是误判率存在的原因。</p>
+<h1 id="缓存雪崩"><a href="#缓存雪崩" class="headerlink" title="缓存雪崩"></a>缓存雪崩</h1><p>缓存雪崩是指在我们设置缓存时采用了相同的过期时间，导致缓存在某一时刻同时失效，请求全部转发到数据库，最终导致数据库瞬时压力过大而崩溃。</p>
+<p>缓存雪崩导致的问题一般很难排查，如果没有事先预防，很可能要花很大力气才能找得到原因。对于缓存雪崩的情况，最简单的方案就是在原有失效时间的基础上增加一个随机时间（例如1-5分钟），这样每个缓存过期时间的重复率就会降低，从而减少缓存雪崩的发生。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><ul>
+<li>缓存穿透指的是请求不存在的数据，从而使得缓存形同虚设，缓存层被穿透了。缓存雪崩则是指缓存在同一时间同时过期，就像所有雪块同一时刻掉下来，像雪崩一样。缓存击穿则是在某些热点缓存数据过期瞬间发生的。</li>
+<li>缓存雪崩其实比较好理解，其解决方案也很简单，就是让过期时间变得更加均匀，自然就可以避免这种异常情况的发生。而缓存穿透和缓存击穿则非常相似，但它们还是略有不同。</li>
+<li>缓存穿透发生的前提是业务上的漏洞，导致出现了非法请求。而缓存击穿只会发生于访问量很大的热点数据，并且是发生在其过期进行更新数据的瞬间。</li>
+</ul>
+]]></content>
+      <categories>
+        <category>redis</category>
+      </categories>
+      <tags>
+        <tag>redis</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Java线程池 记录</title>
+    <url>/2018/05/26/Java%E7%BA%BF%E7%A8%8B%E6%B1%A0%20%E8%AE%B0%E5%BD%95/</url>
+    <content><![CDATA[<h1 id="记在前面"><a href="#记在前面" class="headerlink" title="记在前面"></a>记在前面</h1><p>注：源代码基于 Java 1.8。<br>ThreadPoolExecutor继承了AbstractExecutorService，实现了ExecutorService接口，而ExecutorService接口继承了Executor接口。类图如下：<br><img src="/images/java/ThreadPoolExecutor-url.png" alt><br><a id="more"></a></p>
+<h1 id="线程池"><a href="#线程池" class="headerlink" title="线程池"></a>线程池</h1><p>线程池利用的是池化思想，线程放在这个池子中进行重复利用，能够减去了线程的创建和销毁所带来的代价（时间和资源）。</p>
+<h1 id="线程池的作用"><a href="#线程池的作用" class="headerlink" title="线程池的作用"></a>线程池的作用</h1><ul>
+<li>复用线程</li>
+<li>管理线程</li>
+<li>控制最大并发数（降低资源消耗、提高响应速度）</li>
+</ul>
+<h1 id="ThreadPoolExecutor"><a href="#ThreadPoolExecutor" class="headerlink" title="ThreadPoolExecutor"></a>ThreadPoolExecutor</h1><p>ThreadPoolExecutor是线程池的具体实现类，一般所有的线程池都是基于这个类实现的。<br><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 构造方法</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="title">ThreadPoolExecutor</span><span class="params">(<span class="keyword">int</span> corePoolSize,</span></span></span><br><span class="line"><span class="function"><span class="params">                          <span class="keyword">int</span> maximumPoolSize,</span></span></span><br><span class="line"><span class="function"><span class="params">                          <span class="keyword">long</span> keepAliveTime,</span></span></span><br><span class="line"><span class="function"><span class="params">                          TimeUnit unit,</span></span></span><br><span class="line"><span class="function"><span class="params">                          BlockingQueue&lt;Runnable&gt; workQueue)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">this</span>(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue,</span><br><span class="line">         Executors.defaultThreadFactory(), defaultHandler);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li>corePoolSize：线程池核心线程数量</li>
+<li>maximumPoolSize：线程池允许最大线程数量</li>
+<li>keepAliverTime：当活跃线程数大于核心线程数时，空闲的多余线程最大存活时间</li>
+<li>unit：存活时间的单位，一个枚举</li>
+<li>workQueue：存放任务的阻塞队列</li>
+<li>threadFactory：创建线程的工厂</li>
+<li>handler：超出线程范围和队列容量的任务的处理策略</li>
+</ul>
+<p>ThreadPoolExecutor中，有两个重要的成员变量：workQueue和workers<br><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 存放任务的队列</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">final</span> BlockingQueue&lt;Runnable&gt; workQueue;</span><br><span class="line"><span class="comment">// 工作线程</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">final</span> HashSet&lt;Worker&gt; workers = <span class="keyword">new</span> HashSet&lt;Worker&gt;();</span><br></pre></td></tr></table></figure></p>
+<h1 id="常见的Java线程池"><a href="#常见的Java线程池" class="headerlink" title="常见的Java线程池"></a>常见的Java线程池</h1><p>生成线程池使用的是Executors类对应的工厂方法，以下是常见的Java线程池：</p>
+<h2 id="FixedThreadPool"><a href="#FixedThreadPool" class="headerlink" title="FixedThreadPool"></a>FixedThreadPool</h2><p>FixedThreadPool是固定数量的线程池，只有核心线程。每提交一个任务就是一个线程，直到达到线程池的最大核心数量，然后后面进入等待队列，直到前面的任务完成才继续执行。线程池的大小一旦达到最大值就会保持不变，如果某个线程因为执行异常而结束，那么线程池会补充一个新线程。<br><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// corePoolSize等于maximumPoolSize，实现固定线程数量</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> ExecutorService <span class="title">newFixedThreadPool</span><span class="params">(<span class="keyword">int</span> nThreads)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> ThreadPoolExecutor(nThreads, nThreads,</span><br><span class="line">                                  <span class="number">0L</span>, TimeUnit.MILLISECONDS,</span><br><span class="line">                                  <span class="keyword">new</span> LinkedBlockingQueue&lt;Runnable&gt;());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h2 id="SingleThreadExecutor"><a href="#SingleThreadExecutor" class="headerlink" title="SingleThreadExecutor"></a>SingleThreadExecutor</h2><p>SingleThreadExecutor是数量为1的线程池。线程池中每次只有一个线程在运行，单线程串行执行任务。如果这个唯一的线程因为异常结束，那么会有一个新的线程来替代它。<br><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// corePoolSize等于maximumPoolSize等于1，实现线程数量永远为1</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> ExecutorService <span class="title">newSingleThreadExecutor</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> FinalizableDelegatedExecutorService</span><br><span class="line">        (<span class="keyword">new</span> ThreadPoolExecutor(<span class="number">1</span>, <span class="number">1</span>,</span><br><span class="line">                                <span class="number">0L</span>, TimeUnit.MILLISECONDS,</span><br><span class="line">                                <span class="keyword">new</span> LinkedBlockingQueue&lt;Runnable&gt;()));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h2 id="CachedThreadPool"><a href="#CachedThreadPool" class="headerlink" title="CachedThreadPool"></a>CachedThreadPool</h2><p>CachedThreadPool是可缓存线程的线程池。如果线程池的大小超过了处理任务所需要的线程，那么就会回收部分空闲（60秒不执行任务）的线程。当任务数增加时，此线程池又可以智能的添加新线程来处理任务。此线程池不会对线程池大小做限制，线程池大小完全依赖于操作系统（或者说JVM）能够创建的最大线程大小。其中，SynchronousQueue是一个是缓冲区为1的阻塞队列。<br><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> ExecutorService <span class="title">newCachedThreadPool</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> ThreadPoolExecutor(<span class="number">0</span>, Integer.MAX_VALUE,</span><br><span class="line">                                  <span class="number">60L</span>, TimeUnit.SECONDS,</span><br><span class="line">                                  <span class="keyword">new</span> SynchronousQueue&lt;Runnable&gt;());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h2 id="ScheduledThreadPool"><a href="#ScheduledThreadPool" class="headerlink" title="ScheduledThreadPool"></a>ScheduledThreadPool</h2><p>ScheduledThreadPool是核心线程数固定，大小无限制的线程池，支持定时和周期性的执行线程。创建一个周期性执行任务的线程池。<br><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 调用ScheduledThreadPoolExecutor，ScheduledThreadPoolExecutor调用ThreadPoolExecutor</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> ExecutorService <span class="title">newScheduledThreadPool</span><span class="params">(<span class="keyword">int</span> corePoolSize)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 直接跳过ScheduledThreadPoolExecutor构造方法</span></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> ThreadPoolExecutor(corePoolSize, Integer.MAX_VALUE,</span><br><span class="line">                              <span class="number">0L</span>, NANOSECONDS,</span><br><span class="line">                              <span class="keyword">new</span> DelayedWorkQueue());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h1 id="线程池工作流程"><a href="#线程池工作流程" class="headerlink" title="线程池工作流程"></a>线程池工作流程</h1><ol>
+<li>线程池刚创建时，里面没有一个线程；</li>
+<li>当添加一个任务（调用execute()）方法时，线程池会做如下判断：</li>
+<li>如果正在运行的线程数量小于corePoolSize，那么马上创建线程运行这个任务；</li>
+<li>如果正在运行的线程数量大于或等于corePoolSize，那么将这个任务放入队列；</li>
+<li>如果这时候队列满了，而且正在运行的线程数量小于maximumPoolSize，那么还是要创建非核心线程立刻运行这个任务；</li>
+<li>如果队列满了，而且正在运行的线程数量大于或等于maximumPoolSize，那么线程池会抛出异常RejectExecutionException；</li>
+<li>当一个线程完成任务时，它会从队列中取下一个任务来执行；</li>
+<li>当一个线程无事可做，超过一定的时间（keepAliveTime）时，线程池会判断，如果当前运行的线程数大于corePoolSize，那么这个线程就被停掉。所以线程池的所有任务完成后，它最终会收缩到 corePoolSize 的大小。</li>
+</ol>
+<h1 id="运用"><a href="#运用" class="headerlink" title="运用"></a>运用</h1><h2 id="提交"><a href="#提交" class="headerlink" title="提交"></a>提交</h2><p>创建线程池通过Executors的工厂方法，执行任务有两种方式execute和submit来提交一个任务到线程池中，如下：</p>
+<ul>
+<li><p>execute</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">ExecutorService.execute(Runnable command);</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>submit</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 本质还是调用execute</span></span><br><span class="line">Future&lt;T&gt; futureTask = ExecutorService.submit(Callable&lt;T&gt; task);	</span><br><span class="line">Future futureTask = ExecutorService.submit(Runnable task);</span><br><span class="line">Future&lt;T&gt; futureTask = ExecutorService.submit(Runnable task, T Result);</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h2 id="execute"><a href="#execute" class="headerlink" title="execute()"></a>execute()</h2><p>所以核心的逻辑就是execute()方法了，如下：<br><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">execute</span><span class="params">(Runnable command)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (command == <span class="keyword">null</span>)</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> NullPointerException();</span><br><span class="line">	<span class="comment">// 获取当前线程数</span></span><br><span class="line">	<span class="keyword">int</span> c = ctl.get();</span><br><span class="line">	<span class="comment">// 当前线程数量小于coreSize 时</span></span><br><span class="line">	<span class="keyword">if</span> (workerCountOf(c) &lt; corePoolSize) &#123;</span><br><span class="line">		<span class="comment">// 直接启动新的线程</span></span><br><span class="line">		<span class="keyword">if</span> (addWorker(command, <span class="keyword">true</span>))</span><br><span class="line">			<span class="keyword">return</span>;</span><br><span class="line">		c = ctl.get();</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 当前线程数量大于等 coreSize 时</span></span><br><span class="line">	<span class="comment">// runState为RUNNING &amp;&amp; 队列未满</span></span><br><span class="line">	<span class="keyword">if</span> (isRunning(c) &amp;&amp; workQueue.offer(command)) &#123;</span><br><span class="line">		<span class="keyword">int</span> recheck = ctl.get();</span><br><span class="line">		<span class="comment">// 再次检验是否为RUNNING状态</span></span><br><span class="line">		<span class="comment">// 非RUNNING状态 则从workQueue中移除任务并拒绝</span></span><br><span class="line">		<span class="keyword">if</span> (! isRunning(recheck) &amp;&amp; remove(command))</span><br><span class="line">			reject(command);</span><br><span class="line">		<span class="comment">// 防止了SHUTDOWN状态下没有活动线程了，但是队列里还有任务没执行这种特殊情况。</span></span><br><span class="line">		<span class="comment">// 添加一个null任务是因为SHUTDOWN状态下，线程池不再接受新任务</span></span><br><span class="line">		<span class="keyword">else</span> <span class="keyword">if</span> (workerCountOf(recheck) == <span class="number">0</span>)</span><br><span class="line">			addWorker(<span class="keyword">null</span>, <span class="keyword">false</span>);</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 如果队列满了或者是非运行的任务都拒绝执行</span></span><br><span class="line">	<span class="keyword">else</span> <span class="keyword">if</span> (!addWorker(command, <span class="keyword">false</span>))</span><br><span class="line">		reject(command);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h2 id="Worker"><a href="#Worker" class="headerlink" title="Worker"></a>Worker</h2><p>Worker类，Worker 实现了Runnable接口，当Thread的start()方法得到调用时，执行的其实是Worker的run()方法，即runWorker()方法。runWorker()方法之中有一个 while 循环，使用getTask()来获取任务，并执行。getTask()是从 workQueue中获取的</p>
+<h2 id="runWorker"><a href="#runWorker" class="headerlink" title="runWorker()"></a>runWorker()</h2><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">final</span> <span class="keyword">void</span> <span class="title">runWorker</span><span class="params">(Worker w)</span> </span>&#123;</span><br><span class="line">    Thread wt = Thread.currentThread();</span><br><span class="line">    Runnable task = w.firstTask;</span><br><span class="line">    w.firstTask = <span class="keyword">null</span>;</span><br><span class="line">    w.unlock(); <span class="comment">// allow interrupts</span></span><br><span class="line">    <span class="keyword">boolean</span> completedAbruptly = <span class="keyword">true</span>;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">	    <span class="comment">// </span></span><br><span class="line">        <span class="keyword">while</span> (task != <span class="keyword">null</span> || (task = getTask()) != <span class="keyword">null</span>) &#123;</span><br><span class="line">            w.lock();</span><br><span class="line">            <span class="comment">// If pool is stopping, ensure thread is interrupted;</span></span><br><span class="line">            <span class="comment">// if not, ensure thread is not interrupted.  This</span></span><br><span class="line">            <span class="comment">// requires a recheck in second case to deal with</span></span><br><span class="line">            <span class="comment">// shutdownNow race while clearing interrupt</span></span><br><span class="line">            <span class="keyword">if</span> ((runStateAtLeast(ctl.get(), STOP) ||</span><br><span class="line">                 (Thread.interrupted() &amp;&amp;</span><br><span class="line">                  runStateAtLeast(ctl.get(), STOP))) &amp;&amp;</span><br><span class="line">                !wt.isInterrupted())</span><br><span class="line">                wt.interrupt();</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                beforeExecute(wt, task);</span><br><span class="line">                Throwable thrown = <span class="keyword">null</span>;</span><br><span class="line">                <span class="keyword">try</span> &#123;</span><br><span class="line">                    task.run();</span><br><span class="line">                &#125; <span class="keyword">catch</span> (RuntimeException x) &#123;</span><br><span class="line">                    thrown = x; <span class="keyword">throw</span> x;</span><br><span class="line">                &#125; <span class="keyword">catch</span> (Error x) &#123;</span><br><span class="line">                    thrown = x; <span class="keyword">throw</span> x;</span><br><span class="line">                &#125; <span class="keyword">catch</span> (Throwable x) &#123;</span><br><span class="line">                    thrown = x; <span class="keyword">throw</span> <span class="keyword">new</span> Error(x);</span><br><span class="line">                &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">                    afterExecute(task, thrown);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">                task = <span class="keyword">null</span>;</span><br><span class="line">                w.completedTasks++;</span><br><span class="line">                w.unlock();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        completedAbruptly = <span class="keyword">false</span>;</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        processWorkerExit(w, completedAbruptly);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="getTask"><a href="#getTask" class="headerlink" title="getTask()"></a>getTask()</h2><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 是从 workQueue中获取的</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> Runnable <span class="title">getTask</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">boolean</span> timedOut = <span class="keyword">false</span>; <span class="comment">// Did the last poll() time out?</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (;;) &#123;</span><br><span class="line">        <span class="keyword">int</span> c = ctl.get();</span><br><span class="line">        <span class="keyword">int</span> rs = runStateOf(c);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// Check if queue empty only if necessary.</span></span><br><span class="line">        <span class="keyword">if</span> (rs &gt;= SHUTDOWN &amp;&amp; (rs &gt;= STOP || workQueue.isEmpty())) &#123;</span><br><span class="line">            decrementWorkerCount();</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">int</span> wc = workerCountOf(c);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// Are workers subject to culling?</span></span><br><span class="line">        <span class="keyword">boolean</span> timed = allowCoreThreadTimeOut || wc &gt; corePoolSize;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> ((wc &gt; maximumPoolSize || (timed &amp;&amp; timedOut))</span><br><span class="line">            &amp;&amp; (wc &gt; <span class="number">1</span> || workQueue.isEmpty())) &#123;</span><br><span class="line">            <span class="keyword">if</span> (compareAndDecrementWorkerCount(c))</span><br><span class="line">                <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">            <span class="keyword">continue</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            Runnable r = timed ?</span><br><span class="line">                workQueue.poll(keepAliveTime, TimeUnit.NANOSECONDS) :</span><br><span class="line">                workQueue.take();</span><br><span class="line">            <span class="keyword">if</span> (r != <span class="keyword">null</span>)</span><br><span class="line">                <span class="keyword">return</span> r;</span><br><span class="line">            timedOut = <span class="keyword">true</span>;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (InterruptedException retry) &#123;</span><br><span class="line">            timedOut = <span class="keyword">false</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h1 id="拒绝策略"><a href="#拒绝策略" class="headerlink" title="拒绝策略"></a>拒绝策略</h1><p>当线程池的任务缓存队列已满并且线程池中的线程数目达到maximumPoolSize，如果还有任务提交就会采取任务拒绝策略，有以下四种策略：</p>
+<ul>
+<li>AbortPolicy：抛RejectedExecutionException异常，默认的拒绝策略</li>
+<li>DiscardPolicy：直接丢弃，但是不抛出异常</li>
+<li>DiscardOldestPolicy：丢弃队列最前面的任务，然后重新尝试执行任务（重复此过程）</li>
+<li>CallerRunsPolicy：由调用线程处理该任务<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">ThreadPoolExecutor.AbortPolicy：抛RejectedExecutionException异常</span><br><span class="line">ThreadPoolExecutor.DiscardPolicy：直接丢弃，但是不抛出异常</span><br><span class="line">ThreadPoolExecutor.DiscardOldestPolicy：丢弃队列最前面的任务，然后重新尝试执行任务</span><br><span class="line">ThreadPoolExecutor.CallerRunsPolicy：由调用线程处理该任务</span><br></pre></td></tr></table></figure></li>
+</ul>
+]]></content>
+      <categories>
+        <category>java</category>
+      </categories>
+      <tags>
+        <tag>java</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>ArrayList 记录</title>
+    <url>/2018/04/21/ArrayList%20%E8%AE%B0%E5%BD%95/</url>
+    <content><![CDATA[<h1 id="记在前面"><a href="#记在前面" class="headerlink" title="记在前面"></a>记在前面</h1><p>注：源代码基于 Java 1.8。<br>ArrayList继承了AbstractList，实现了List接口。ArrayList在工作中经常用到，类图如下：<br><img src="/images/java/collection/arraylist-url.png" alt><br><a id="more"></a></p>
+<h1 id="动态扩容"><a href="#动态扩容" class="headerlink" title="动态扩容"></a>动态扩容</h1><p>如何做到动态扩容的？</p>
+<h2 id="构造方法"><a href="#构造方法" class="headerlink" title="构造方法"></a>构造方法</h2><p>三种方式实现如下：<br>其中重要一点无参构造方法，延迟分配对象数组空间大小为10<br><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 构造方法一：指定容量大小</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="title">ArrayList</span><span class="params">(<span class="keyword">int</span> initialCapacity)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (initialCapacity &gt; <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">this</span>.elementData = <span class="keyword">new</span> Object[initialCapacity];</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (initialCapacity == <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">this</span>.elementData = EMPTY_ELEMENTDATA;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"Illegal Capacity: "</span>+</span><br><span class="line">                                           initialCapacity);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 构造方法二：使用延迟分配对象数组空间，当第一次插入元素时才分配10（默认）个对象空间</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="title">ArrayList</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">this</span>.elementData = DEFAULTCAPACITY_EMPTY_ELEMENTDATA;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 构造方法三：构造一个包含指定元素的list，这些元素的是按照Collection的迭代器返回的顺序排列的</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="title">ArrayList</span><span class="params">(Collection&lt;? extends E&gt; c)</span> </span>&#123;</span><br><span class="line">    elementData = c.toArray();</span><br><span class="line">    <span class="keyword">if</span> ((size = elementData.length) != <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="comment">// c.toArray might (incorrectly) not return Object[] (see 6260652)</span></span><br><span class="line">        <span class="keyword">if</span> (elementData.getClass() != Object[].class)</span><br><span class="line">            elementData = Arrays.copyOf(elementData, size, Object[].class);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// replace with empty array.</span></span><br><span class="line">        <span class="keyword">this</span>.elementData = EMPTY_ELEMENTDATA;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h2 id="动态扩容-1"><a href="#动态扩容-1" class="headerlink" title="动态扩容"></a>动态扩容</h2><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">grow</span><span class="params">(<span class="keyword">int</span> minCapacity)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 每次扩容增加原来的50%（即原容量的1.5倍）  </span></span><br><span class="line">    <span class="keyword">int</span> oldCapacity = elementData.length;</span><br><span class="line">    <span class="keyword">int</span> newCapacity = oldCapacity + (oldCapacity &gt;&gt; <span class="number">1</span>);</span><br><span class="line">    <span class="keyword">if</span> (newCapacity - minCapacity &lt; <span class="number">0</span>)</span><br><span class="line">        newCapacity = minCapacity;</span><br><span class="line">    <span class="keyword">if</span> (newCapacity - MAX_ARRAY_SIZE &gt; <span class="number">0</span>)</span><br><span class="line">        newCapacity = hugeCapacity(minCapacity);</span><br><span class="line">    <span class="comment">// 调用Arrays.copyOf静态方法, 本质是调用System.arraycopy静态方法</span></span><br><span class="line">    elementData = Arrays.copyOf(elementData, newCapacity);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>动态扩容有利于资源的合理利用。</p>
+<h1 id="线程不安全"><a href="#线程不安全" class="headerlink" title="线程不安全"></a>线程不安全</h1><p>比如add方法<br><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">add</span><span class="params">(E e)</span> </span>&#123;</span><br><span class="line">    ensureCapacityInternal(size + <span class="number">1</span>);  <span class="comment">// Increments modCount!!</span></span><br><span class="line">    elementData[size++] = e;           <span class="comment">// 此操作不是原子操作</span></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>elementData[size++] = e，不是原子操作，当多线程添加的情况下，假如size=0时，添加第一个元素的线程添加成功，同时在size没有及时写到内存中时，这时另一个线程继续添加就覆盖了原来的值，要保证线程安全，可以如下使用：<br><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 本质是给ArrayList的每个方法加synchronized关键字，利用Object来上锁</span></span><br><span class="line">Collections.synchronizedList(<span class="keyword">new</span> ArrayList&lt;&gt;());</span><br></pre></td></tr></table></figure></p>
+<h1 id="Arraylist与LinkedList异同"><a href="#Arraylist与LinkedList异同" class="headerlink" title="Arraylist与LinkedList异同"></a>Arraylist与LinkedList异同</h1><ul>
+<li>是否保证线程安全：ArrayList和 LinkedList都是不同步的，也就是不保证线程安全；</li>
+<li>底层数据结构：Arraylist 底层使用的是Object数组。LinkedList底层使用的是双向循环链表数据结构；</li>
+<li>插入和删除是否受元素位置的影响：① ArrayList采用数组存储，所以插入和删除元素的时间复杂度受元素位置的影响。 比如：执行add(E e)方法的时候，ArrayList会默认在将指定的元素追加到此列表的末尾，这种情况时间复杂度就是O(1)。但是如果要在指定位置i插入和删除元素的话（add(int index, E element)）时间复杂度就为 O(n-i)。因为在进行上述操作的时候集合中第i和第i个元素之后的(n-i)个元素都要执行向后位/向前移一位的操作。② LinkedList采用链表存储，所以插入，删除元素时间复杂度不受元素位置的影响，都是近似 O（1）而数组为近似 O（n）；</li>
+<li>内存空间占用：ArrayList的空 间浪费主要体现在在list列表的结尾会预留一定的容量空间，而LinkedList的空间花费则体现在它的每一个元素都需要消耗比ArrayList更多的空间（因为要存放直接后继和直接前驱以及数据）。</li>
+<li>是否支持快速随机访问：LinkedList不支持高效的随机元素访问，而ArrayList支持。快速随机访问就是通过元素的序号快速获取元素对象(对应于get(int index)方法)；</li>
+<li>实现了RandomAccess接口的ArrayList遍历优先使用for循环，未实现RadmoAcces接口优先使用foreach（底层也是通过iterator实现的）。</li>
+</ul>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><ul>
+<li>ArrayList底层是基于数组来实现的，因此在get的时候效率高，而remove的时候，效率低（后面的元素都涉及移动）；</li>
+<li>调用默认的ArrayList无参构造方法的话，数组的初始容量为10 ,其实是延迟分配对象；</li>
+<li>ArrayList会自动扩容，扩容的时候，会将容量扩至原来的1.5倍；</li>
+<li>ArrayList不是线程安全的</li>
+</ul>
+]]></content>
+      <categories>
+        <category>java</category>
+      </categories>
+      <tags>
+        <tag>java</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>搭建安装 Gitlab</title>
+    <url>/2018/03/10/%E6%90%AD%E5%BB%BA%E5%AE%89%E8%A3%85-Gitlab/</url>
+    <content><![CDATA[<h1 id="记在前面"><a href="#记在前面" class="headerlink" title="记在前面"></a>记在前面</h1><p>资料记录，关于Gitlab的搭建配置。<br><a id="more"></a><br>换了个工作，发现版本控制用的是svn，和老大讨论后，后面的项目都用git，但git服务器都还没有搭起来。刚好有时间，我就去弄了下，在此记录下来。服务器是公司配备的一台阿里云服务器，分配有域名。</p>
+<h1 id="两种安装方法"><a href="#两种安装方法" class="headerlink" title="两种安装方法"></a>两种安装方法</h1><ul>
+<li>编译安装<ul>
+<li>优点：可定制性强。数据库既可以选择MySQL，也可以选择PostgreSQL；服务器既可以选择Apache，也可以选择Nginx。</li>
+<li>优点：缺点：国外的源不稳定，被墙时，依赖软件包难以下载。配置流程繁琐、复杂，容易出现各种各样的问题。依赖关系多，不容易管理，卸载GitLab相对麻烦。</li>
+</ul>
+</li>
+<li>通过rpm包安装<ul>
+<li>优点：安装过程简单，安装速度快。采用rpm包安装方式，安装的软件包便于管理。</li>
+<li>缺点：数据库默认采用PostgreSQL，服务器默认采用Nginx，不容易定制。<br>临时充当把运维，本着快速、简单原则采取rpm安装。</li>
+</ul>
+</li>
+</ul>
+<h1 id="编辑源"><a href="#编辑源" class="headerlink" title="编辑源"></a>编辑源</h1><p>使用<a href="https://mirror.tuna.tsinghua.edu.cn/help/gitlab-ce/" target="_blank" rel="noopener">清华大学TUNA镜像源</a>，选择RHEL/CentOS 用户，将内容复制到/etc/yum.repos.d/gitlab-ce.repo文件中：<br><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">[gitlab-ce]</span><br><span class="line">name=Gitlab CE Repository</span><br><span class="line">baseurl=https://mirrors.tuna.tsinghua.edu.cn/gitlab-ce/yum/el<span class="variable">$releasever</span>/</span><br><span class="line">gpgcheck=0</span><br><span class="line">enabled=1</span><br></pre></td></tr></table></figure></p>
+<h1 id="更新本地yum缓存"><a href="#更新本地yum缓存" class="headerlink" title="更新本地yum缓存"></a>更新本地yum缓存</h1><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">sudo yum makecache</span><br></pre></td></tr></table></figure>
+<h1 id="安装GitLab社区版"><a href="#安装GitLab社区版" class="headerlink" title="安装GitLab社区版"></a>安装GitLab社区版</h1><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">sudo yum install gitlab-ce-8.8.4-ce.0.el6 <span class="comment">#(安装指定版本)</span></span><br><span class="line">sudo yum install gitlab-ce <span class="comment">#(自动安装最新版)</span></span><br></pre></td></tr></table></figure>
+<p>gitlab安装目录和所有的工程目录都在/var/opt/gitlab/路径下。</p>
+<h1 id="配置并启动"><a href="#配置并启动" class="headerlink" title="配置并启动"></a>配置并启动</h1><p>更改访问域名和ssh端口 vim /etc/gitlab/gitlab.rb：<br><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">external_url <span class="comment">#换成对应公司git域名</span></span><br><span class="line">gitlab_rails[<span class="string">'gitlab_shell_ssh_port'</span>] = <span class="comment">#换成对应的ssh端口号</span></span><br></pre></td></tr></table></figure></p>
+<p>所有的配置在/etc/gitlab/gitlab.rb中修改，修改完配置后执行gitlab-ctl reconfigure生效。</p>
+<h1 id="登录GitLab"><a href="#登录GitLab" class="headerlink" title="登录GitLab"></a>登录GitLab</h1><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">username: root </span><br><span class="line">password: 5iveL!fe</span><br></pre></td></tr></table></figure>
+<h1 id="关闭注册功能"><a href="#关闭注册功能" class="headerlink" title="关闭注册功能"></a>关闭注册功能</h1><p>默认注册功能是开启的，公司的Gitlab的话需要考虑关闭注册功能。用管理员账号登录之后，进入”Admin area”，点”settings”，取消”Signup enabled”。</p>
+<h1 id="备份"><a href="#备份" class="headerlink" title="备份"></a>备份</h1><p>利用crontab定时备份，如每周日凌晨2点进行备份。<br><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">0 2 * * 0 /opt/gitlab/bin/gitlab-rake gitlab:backup:create</span><br></pre></td></tr></table></figure></p>
+<p>在/var/opt/gitlab/backups目录下创建一个名称类似为xxxxxxxx_gitlab_backup.tar的压缩包，这个压缩包就是Gitlab整个的完整部分, 其中开头的xxxxxx是备份创建的时间戳。</p>
+<h1 id="修改备份文件默认目录"><a href="#修改备份文件默认目录" class="headerlink" title="修改备份文件默认目录"></a>修改备份文件默认目录</h1><p>vi /etc/gitlab/gitlab.rb修改默认存放备份文件的目录。<br><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">gitlab_rails[<span class="string">'backup_path'</span>] = <span class="string">'/var/backup'</span></span><br></pre></td></tr></table></figure></p>
+]]></content>
+      <categories>
+        <category>gitlab</category>
+      </categories>
+      <tags>
+        <tag>gitlab</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>思考</title>
+    <url>/2017/04/18/%E6%80%9D%E8%80%83/</url>
+    <content><![CDATA[<h2 id="心态"><a href="#心态" class="headerlink" title="心态"></a>心态</h2><p>心态很重要，遇到困难，认为自己无法解决，如果选择逃避，会使自己永远活得失败。当然，正向老大所说一样，当一个人遇到问题无法抗住的时候，完全要去沟通，去向更高一层上抛出该问题，不要一个人去承担。<br><a id="more"></a></p>
+<h2 id="生活"><a href="#生活" class="headerlink" title="生活"></a>生活</h2><p>心态调整好了，工作和生活才能分开。工作是为了更好的生活。生活过好了才能去更加有效率的工作。以后要慢慢学会去将二者分开。由衷感谢老大们对自己的开导。</p>
+]]></content>
+      <categories>
+        <category>思考</category>
+      </categories>
+      <tags>
+        <tag>思考</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>linux常用命令积累</title>
+    <url>/2017/03/20/linux%E5%B8%B8%E7%94%A8%E5%91%BD%E4%BB%A4%E7%A7%AF%E7%B4%AF/</url>
+    <content><![CDATA[<h2 id="记在前面"><a href="#记在前面" class="headerlink" title="记在前面"></a>记在前面</h2><p>平时工作基本上都是java相关开发工作，但是偶尔会用到shell。用到某个命令都会去查阅相关资料，<br>不能很好记忆，在这儿做个总结（持续补充）。<br><a id="more"></a></p>
+<h2 id="vim"><a href="#vim" class="headerlink" title="vim"></a>vim</h2><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"><span class="comment">#normal模式下</span></span><br><span class="line">选中文本  <span class="comment"># 直接按键v，进入默认visual模式，使用v+j/k/h/l 进行文本选择 或移动光标键选定</span></span><br><span class="line"></span><br><span class="line">/xxx	从光标开始处向文件尾搜索xxx，按n查找下一个，N查找上一个</span><br><span class="line">?xxx	从光标开始处向文件首搜索xxx</span><br><span class="line"></span><br><span class="line">u  <span class="comment"># 撤销上一步的操作</span></span><br><span class="line">Ctrl+r <span class="comment"># 恢复上一步被撤销的操作</span></span><br><span class="line"></span><br><span class="line">0  <span class="comment"># 光标移到行首(数字0)</span></span><br><span class="line">$  <span class="comment"># 光标移至行尾</span></span><br><span class="line">h  <span class="comment"># 光标左移一个字符</span></span><br><span class="line">l  <span class="comment"># 光标右移一个字符</span></span><br><span class="line">j  <span class="comment"># 光标下移一行</span></span><br><span class="line">k  <span class="comment"># 光标上移一行</span></span><br><span class="line"></span><br><span class="line">gg  <span class="comment"># 到第一行（到文件头）</span></span><br><span class="line">G  <span class="comment"># 到最后一行（到文件末尾）</span></span><br><span class="line"></span><br><span class="line">Ctrl+u	<span class="comment"># 向文件首翻半屏</span></span><br><span class="line">Ctrl+d	<span class="comment"># 向文件尾翻半屏</span></span><br><span class="line">Ctrl+f	<span class="comment"># 向文件尾翻一屏</span></span><br><span class="line">Ctrl＋b	<span class="comment"># 向文件首翻一屏</span></span><br><span class="line"></span><br><span class="line">y  <span class="comment"># 在使用v模式选定了某一块的时候，复制选定块到缓冲区用</span></span><br><span class="line">yy <span class="comment"># 复制整行</span></span><br><span class="line">y^ <span class="comment"># 复制当前到行头的内容</span></span><br><span class="line">y$ <span class="comment"># 复制当前到行尾的内容</span></span><br><span class="line"></span><br><span class="line">d  <span class="comment"># 剪切选定块到缓冲区； </span></span><br><span class="line">dd <span class="comment"># 剪切整行 </span></span><br><span class="line">d^ <span class="comment"># 剪切至行首 </span></span><br><span class="line">d$ <span class="comment"># 剪切至行尾 </span></span><br><span class="line"></span><br><span class="line">p  <span class="comment"># 粘贴  小写p代表贴至游标后</span></span><br><span class="line">P  <span class="comment"># 粘贴  大写P代表贴至游标前</span></span><br></pre></td></tr></table></figure>
+<h2 id="scp"><a href="#scp" class="headerlink" title="scp"></a>scp</h2><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 从远程复制文件到本地目录</span></span><br><span class="line">scp username@192.168.10.127:/var/<span class="built_in">log</span>/java/rolling.log /var/<span class="built_in">log</span>/java/</span><br><span class="line"></span><br><span class="line"><span class="comment"># 从远程复制目录到本地</span></span><br><span class="line">scp -r username@192.168.10.127:/var/<span class="built_in">log</span>/ /var/<span class="built_in">log</span>/</span><br></pre></td></tr></table></figure>
+<h2 id="压缩"><a href="#压缩" class="headerlink" title="压缩"></a>压缩</h2><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">tar zcvf xxx.tar 需要压缩的目录</span><br><span class="line">zip -r xxx.zip 需要压缩的目录</span><br></pre></td></tr></table></figure>
+<h2 id="解压"><a href="#解压" class="headerlink" title="解压"></a>解压</h2><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">tar zxvf xxx.tar -C 需要解压到的目录</span><br><span class="line">unzip xxx.zip</span><br></pre></td></tr></table></figure>
+<h2 id="查看内存"><a href="#查看内存" class="headerlink" title="查看内存"></a>查看内存</h2><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">free -m</span><br></pre></td></tr></table></figure>]]></content>
+      <categories>
+        <category>linux</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Hello World</title>
+    <url>/2016/08/01/hello-world/</url>
+    <content><![CDATA[<p>Welcome to <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/" target="_blank" rel="noopener">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html" target="_blank" rel="noopener">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="noopener">GitHub</a>.</p>
+<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo new <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/writing.html" target="_blank" rel="noopener">Writing</a></p>
+<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/server.html" target="_blank" rel="noopener">Server</a></p>
+<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/generating.html" target="_blank" rel="noopener">Generating</a></p>
+<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/deployment.html" target="_blank" rel="noopener">Deployment</a></p>
+]]></content>
+      <categories>
+        <category>hexo</category>
+      </categories>
+      <tags>
+        <tag>hexo</tag>
+      </tags>
+  </entry>
+</search>

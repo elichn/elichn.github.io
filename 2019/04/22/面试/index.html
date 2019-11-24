@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="面试,">
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="记在前面记录在面试中遇到过得题目，以及面试他人时常问的题目。">
+<meta name="keywords" content="面试">
+<meta property="og:type" content="article">
+<meta property="og:title" content="面试">
+<meta property="og:url" content="https://elichn.github.io/2019/04/22/面试/index.html">
+<meta property="og:site_name" content="elichn">
+<meta property="og:description" content="记在前面记录在面试中遇到过得题目，以及面试他人时常问的题目。">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2019-05-06T14:33:27.959Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="面试">
+<meta name="twitter:description" content="记在前面记录在面试中遇到过得题目，以及面试他人时常问的题目。">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"hide","offset":12,"b2t":false,"scrollpercent":false,"onmobile":true},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://elichn.github.io/2019/04/22/面试/">
+
+
+
+
+
+  <title>面试 | elichn</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">elichn</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br>
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br>
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off" placeholder="搜索..." spellcheck="false" type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://elichn.github.io/2019/04/22/面试/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="elichn">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/avatar.png">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="elichn">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">面试</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-04-22T22:45:12+08:00">
+                2019-04-22
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/面试/" itemprop="url" rel="index">
+                    <span itemprop="name">面试</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+                <a href="/2019/04/22/面试/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count valine-comment-count" data-xid="/2019/04/22/面试/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+             <span id="/2019/04/22/面试/" class="leancloud_visitors" data-flag-title="面试">
+               <span class="post-meta-divider">|</span>
+               <span class="post-meta-item-icon">
+                 <i class="fa fa-eye"></i>
+               </span>
+               
+                 <span class="post-meta-item-text">阅读次数&#58;</span>
+               
+                 <span class="leancloud-visitors-count"></span>
+             </span>
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="记在前面"><a href="#记在前面" class="headerlink" title="记在前面"></a>记在前面</h1><p>记录在面试中遇到过得题目，以及面试他人时常问的题目。<br><a id="more"></a></p>
+<h1 id="java基础"><a href="#java基础" class="headerlink" title="java基础"></a>java基础</h1><h2 id="集合"><a href="#集合" class="headerlink" title="集合"></a>集合</h2><ol>
+<li><p>开发中Java用得比较多的数据结构（集合）有哪些？</p>
+</li>
+<li><p>ArrayList 如何动态扩容的？Arraylist与LinkedList异同？</p>
+</li>
+<li><p>ArrayList是线程安全的吗？</p>
+<p>不安全 原因是add方法 elementData[size++] = e;不是原子操作，当多线程添加的情况下，假如size=0时，添加第一个元素的线程添加成功，同时在size没有及时写到内存中时，这时另一个线程继续添加就覆盖了原来的值。要保证线程安全，可以如下使用： Collections.synchronizedList(new ArrayList&lt;&gt;()); 本质是给ArrayList的每个方法加synchronized关键字，本质是利用Object来上锁。</p>
+<p>ArrayList是线程安全的吗？</p>
+</li>
+<li><p>循环删除list中元素会如下写会发生什么？</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 会抛出 java.util.ConcurrentModificationException异常</span></span><br><span class="line"><span class="keyword">for</span> (String str : list) &#123;   </span><br><span class="line">	<span class="keyword">if</span> (<span class="string">"a"</span>.equals(str)) &#123;</span><br><span class="line">		list.remove(str);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;	</span><br><span class="line"><span class="comment">// 正确移除元素</span></span><br><span class="line">Iterator&lt;String&gt; it = list.iterator();</span><br><span class="line"><span class="keyword">while</span>(it.hasNext()) &#123;</span><br><span class="line">	String str = it.next();</span><br><span class="line">	<span class="keyword">if</span> (<span class="string">"a"</span>.equals(str)) &#123;</span><br><span class="line">		it.remove();</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>谈谈你对HashMap的理解，底层原理的基本实现，hashmap实现原理  put的过程？HashMap怎么解决碰撞问题的？</p>
+</li>
+<li><p>HashMap的遍历有哪两种常用的方法？或者HashMap的操作中，直接使用keySet()遍历有什么问题？</p>
+<p>map.keySet()和map.entrySet()来进行遍历。keySet 先遍历iterator对象，后面再多一步操作hashmap.get(), 第二次遍历只是针对一个bucket的遍历，在hash碰撞不多的情况下性能并不会有大影响。</p>
+</li>
+<li><p>假如你回答HashMap是线程安全的，接着问有没有线程安全的map，接下来问conurren包？</p>
+</li>
+</ol>
+<h2 id="线程池"><a href="#线程池" class="headerlink" title="线程池"></a>线程池</h2><ol>
+<li>平时线程池用的多么？看你项目中有用，讲讲线程池的实现原理。最好用笔简单画下。</li>
+<li>线程池中的corePoolSize和maximumPoolSize有什么不同？</li>
+<li>哪种场景下线程池用完后极速回收？</li>
+</ol>
+<h2 id="并发"><a href="#并发" class="headerlink" title="并发"></a>并发</h2><ol>
+<li><p>synchronized和锁的区别，什么情况下使用synchronized和ReentrantLock？</p>
+<p><a href="https://blog.csdn.net/qq838642798/article/details/65441415" target="_blank" rel="noopener">https://blog.csdn.net/qq838642798/article/details/65441415</a></p>
+</li>
+<li><p>java并发这块了解的怎么样？说说你对volatile关键字的理解？能保证原子性吗？</p>
+</li>
+<li><p>什么是Callable和Future?</p>
+<p>Callable接口类似于Runnable，从名字就可以看出来了，但是Runnable不会返回结果，并且无法抛出返回结果的异常，而Callable功能更强大一些，被线程执行后，可以返回值，这个返回值可以被Future拿到，也就是说，Future可以拿到异步执行任务的返回值。可以认为是带有回调的Runnable。</p>
+<p>Callable接口代表一段可以调用并返回结果的代码;Future接口表示异步任务，是还没有完成的任务给出的未来结果。所以说Callable用于产生结果，Future用于获取结果。</p>
+</li>
+<li></li>
+</ol>
+<h2 id="反射"><a href="#反射" class="headerlink" title="反射"></a>反射</h2><ol>
+<li><p>反射讲一讲，主要是概念, 都在哪需要反射机制？</p>
+<p>对于任意一个类，都能够知道这个类的所有属性和方法（成员变量和函数）；对于任意一个对象，都能够调用它的任意一个方法和属性。<br>编译时刻加载类是静态加载类<br>运行时刻加载类是动态加载类<br>new 创建对象  是静态加载类，在编译时刻就需要加载    所有可能使用到的类动态加载类，在运行时加载功能性的类设计时 动态加载Class c = Class.forName(args[0]) ；反射的操作都是编译之后的操作，编译之后集合是去泛型化的。java中集合的泛型，是防止错误输入的，只在编译阶段有效，绕过编译就无效了。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Foo的实例对象如何表示</span></span><br><span class="line">Foo foo1 = <span class="keyword">new</span> Foo();</span><br><span class="line"><span class="comment">// Foo这个类 也是一个实例对象，Class类的实例对象,如何表示呢</span></span><br><span class="line"><span class="comment">// 任何一个类都是Class的实例对象，这个实例对象有三种表示方式</span></span><br><span class="line"><span class="comment">// 第一种表示方式---&gt;实际在告诉我们任何一个类都有一个隐含的静态成员变量class</span></span><br><span class="line">Class c1 = Foo.class;</span><br><span class="line"><span class="comment">// 第二中表达方式  已经知道该类的对象通过getClass方法</span></span><br><span class="line">Class c2 = foo1.getClass();</span><br><span class="line"><span class="comment">/*官网 c1 ,c2 表示了Foo类的类类型(class type)</span></span><br><span class="line"><span class="comment">* 万事万物皆对象，</span></span><br><span class="line"><span class="comment">* 类也是对象，是Class类的实例对象</span></span><br><span class="line"><span class="comment">* 这个对象我们称为该类的类类型 </span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"><span class="comment">// 不管c1  or c2都代表了Foo类的类类型，一个类只可能是Class类的一个实例对象</span></span><br><span class="line"><span class="comment">// 第三种表达方式</span></span><br><span class="line">Class c3 = Class.forName(<span class="string">"com.imooc.reflect.Foo"</span>);</span><br><span class="line"><span class="comment">// 我们完全可以通过类的类类型创建该类的对象实例----&gt;通过c1 or c2 or c3创建Foo的实例对象</span></span><br><span class="line"><span class="comment">// 需要有无参数的构造方法</span></span><br><span class="line">Foo foo = (Foo)c1.newInstance();</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>反射的性能，如何优化？</p>
+<ul>
+<li>由于JDK的安全检查耗时较多所以通过setAccessible(true)的方式关闭安全检查就可以达到提升反射速度的目的   性能有了20倍的提升；</li>
+<li>缓存大法  多次动态创建一个类的实例的时候，有缓存的写法会比没有缓存要快很多。</li>
+</ul>
+</li>
+</ol>
+<h2 id="设计模式"><a href="#设计模式" class="headerlink" title="设计模式"></a>设计模式</h2><ol>
+<li><p>能否手写个单例模式的？</p>
+</li>
+<li><p>装饰者模式</p>
+</li>
+</ol>
+<h1 id="框架"><a href="#框架" class="headerlink" title="框架"></a>框架</h1><h2 id="spring"><a href="#spring" class="headerlink" title="spring"></a>spring</h2><ol>
+<li><p>spring  ioc  aop 说下原理，理解，aop jdk 和cglib区别，spring选择什么，spring ioc用了什么模式，带来了什么效果？</p>
+</li>
+<li><p>spring有几种注入方式？</p>
+<p>三种注入方式，构造器、接口、set注入，我们常用的是set注入。</p>
+</li>
+</ol>
+<h2 id="springboot"><a href="#springboot" class="headerlink" title="springboot"></a>springboot</h2><ol>
+<li><p>项目中有用springboot，为什么用用springboot？</p>
+<ul>
+<li>上手容易</li>
+<li>独立运行</li>
+<li>简化配置</li>
+<li>自动配置</li>
+<li>应用监控</li>
+</ul>
+</li>
+<li><p>springboot 的配置文件有哪几种格式？它们有什么区别？</p>
+<p>.properties 和 .yml，它们的区别主要是书写格式不同。</p>
+</li>
+<li><p>springboot 的核心注解是哪个？它主要由哪几个注解组成的？</p>
+<p>核心注解：@SpringBootApplication ，由三个注解组合而成</p>
+<ul>
+<li>@SpringBootConfiguration：组合了 @Configuration 注解，实现配置文件的功能。</li>
+<li>@EnableAutoConfiguration：打开自动配置的功能，也可以关闭某个自动配置的选项。</li>
+<li>@ComponentScan：Spring组件扫描。</li>
+</ul>
+</li>
+<li><p>springboot 自动配置原理是什么？</p>
+</li>
+<li><p>springboot可以兼容老 Spring 项目吗，如何做？</p>
+<p>可以兼容，使用 @ImportResource 注解导入老 Spring 项目配置文件。</p>
+</li>
+</ol>
+<h2 id="springmvc"><a href="#springmvc" class="headerlink" title="springmvc"></a>springmvc</h2><ol>
+<li>springmvc原理，流程？</li>
+</ol>
+<h2 id="mybatis"><a href="#mybatis" class="headerlink" title="mybatis"></a>mybatis</h2><ol>
+<li><p>#{}和${}的区别是什么？</p>
+<p>#{}是预编译处理，${}是字符串替换。Mybatis在处理#{}时，会将sql中的#{}替换为?号，调用PreparedStatement的set方法来赋值。Mybatis在处理${}时，就是把${}替换成变量的值。使用#{}可以有效的防止SQL注入，提高系统安全性。</p>
+</li>
+<li><p>mybatis提供了哪些动态sql标签？</p>
+<p>mybatis提供了9种动态sql标签：trim | where | set | foreach | if | choose | when | otherwise | bind。</p>
+</li>
+</ol>
+<h1 id="JVM"><a href="#JVM" class="headerlink" title="JVM"></a>JVM</h1><ol>
+<li><p>参数设置</p>
+<ul>
+<li>-Xms  堆的最小值   </li>
+<li>-Xmx  堆的最大值</li>
+<li>-Xmn  新生代容量</li>
+<li>-Xss  设置栈容量</li>
+<li>-XX：PermSize   -XXMaxPermSize  限制方法区的大小</li>
+<li>-XX:MaxTenuringThreshold  动态对象年龄判断</li>
+<li>-XX:SurviorRatio  Eden与Survivor区的比例</li>
+<li>-XX:PretenureSizeThreshold  晋升老年代对象年龄</li>
+</ul>
+</li>
+<li><p>垃圾收集算法有哪些？</p>
+<ul>
+<li>标记-清除算法：最基础的收集算法，分为两个阶段 标记和清除 （ 缺点  效率不高，标记和清除两个过程效率都不高； 空间问题 内存产生大量不连续的内存碎片，导致大对象无法找到足够连续的内存而不得不出发另一次垃圾收集）</li>
+<li>复制算法：解决效率问题   将内存划分为大小相等的两块，每次只使用其中的一块，当这一块的内存用完了，就将还存活的对象复制到另一块上面，然后将已使用过的内存空间一次清理掉。 代价是将内存缩小了一倍。新生代98%是朝生夕死的，内存分为一块较大的Eden 空间和两块较小的Survivor空间，每次使用Eden和其中一块Survivor，回收时，将Eden和Survivor中还存活的对象一次复制到另一块Survivor空间上，最后清理掉Eden和刚用过的Survivor空间。Hotspot默认Eden和Survivor的大小比例是8：1</li>
+<li>标记-整理算法：复制算法在对象存活率较高时就要进行复制操作，效率将会遍低。更关键的是不想浪费空间就需要额外空间进行担保，以应对内存中所有对象都100%存活的极端情况。根据老年代的特定标记过程一样，后续操作是让所有存活的对象都向一边移动，然后直接清理掉端边界以外的内存。    </li>
+</ul>
+</li>
+<li><p>对象的内存布局  由几部分构成？</p>
+<p>对象在内存中存储的布局可以分为3块区域：对象头(Header)、实例数据(Instance Data)和对齐填充(Padding)。</p>
+</li>
+<li><p>对象已死吗？如何判断？ GC Roots  有哪些？</p>
+<p>用到了什么 可达性分析算法 （Reachability Analysiss）</p>
+<ul>
+<li>虚拟机栈（栈帧中的本地变量表）中引用的对象</li>
+<li>方法区中类静态属性引用的对象</li>
+<li>方法区中常量引用的对象</li>
+<li>本地方法栈中JNI（Native方法）引用的对象</li>
+</ul>
+</li>
+<li><p>JVM中，如果把堆内存参数配置的超过了本地内存，会怎么样？ </p>
+<p>应用运行不了。</p>
+<ul>
+<li><p>windows下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Error occurred during initialization of VM </span><br><span class="line">Could not reserve enough space <span class="keyword">for</span> object heap</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>linux下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">error=<span class="string">'Cannot allocate memory'</span></span><br><span class="line">hs_err_pid1288.log</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+</li>
+<li><p>类加载器</p>
+<p>双亲委派模型的工作过程是：如果一个类加载器收到了类加载的请求，它首先不会自己去尝试加载这个类，而是把这个请求委派给父类加载器去完成，每一个层次的类加载器都是如此，因此所有的加载请求最终都应该传送到顶层的启动类加载器中，只有当父加载器反馈自己无法完成这个加载请求（它的搜索范围中没有找到所需的类）时，子加载器才会尝试自己去加载。</p>
+<p>好处：就是Java类随着它的类加载器一起具备了一种带有优先级的层次关系 。Object类在程序的各种类加载器环境中都是同一个类。反之，不使用，Java类型体系中最基础的行为也就无法保证，应用程序也将会变得一片混乱</p>
+</li>
+<li><p>什么时候触发minor GC 什么时候触发full GC？</p>
+<p>从年轻代空间（包括 Eden 和 Survivor 区域）回收内存被称为 Minor GC；</p>
+<p>对老年代GC称为Major GC；</p>
+<p>而Full GC是对整个堆来说的；</p>
+<p>Minor GC触发条件：当Eden区满时，触发Minor GC。</p>
+<p>Full GC触发条件：</p>
+<ul>
+<li>System.gc()方法的调用   </li>
+<li>老年代空间不足</li>
+<li>方法区空间不足</li>
+<li>通过Minor GC后进入老年代的平均大小大于老年代的可用内存</li>
+<li>由Eden区、From Space区向To Space区复制时，对象大小大于To Space可用内存，则把该对象转存到老年代，且老年代的可用内存小于该对象大小</li>
+</ul>
+<h1 id="redis"><a href="#redis" class="headerlink" title="redis"></a>redis</h1><ol>
+<li><p>看项目中用过redis。redis有什么数据类型？</p>
+<p>主要由五种：String、Hash、List、Set和Sorted Set</p>
+</li>
+<li><p>看项目中用过redis，用作缓存，哪种场景下适合用缓存？缓存击穿？</p>
+</li>
+<li><p>知道redis的持久化吗？都有什么缺点和有点？具体底层实现呢？</p>
+<p>RDB快照和AOF日志</p>
+<ul>
+<li>RDB：Redis借助了fork命令的copy on write机制  在生成快照时，将当前进程fork出一个子进程，然后在子进程中循环所有的数据，将数据写成为RDB文件缺点：rdb有他的不足，就是一旦数据库出现问题，那么我们的RDB文件中保存的数据并不是全新的，从上次RDB文件生成到Redis停机这段时间的数据全部丢掉了。</li>
+<li>AOF：AOF日志的全称是append only file，它是一个追加写入的日志文件 对于那些无法忍数据丢失的应用，建议使用AOF日志。</li>
+</ul>
+</li>
+<li><p>redis过期策略都有哪些？LRU？写一个java版本的代码吧？ </p>
+<p> 惰性删除 + 定期删除    </p>
+<p> 被动删除：当读/写一个已经过期的key时，会触发惰性删除策略，直接删除掉这个过期key</p>
+<p>主动删除：由于惰性删除策略无法保证冷数据被及时删掉，所以Redis会定期主动淘汰一批已过期的key。当前已用内存超过maxmemory限定时，触发主动清理策略。</p>
+<p>当Redis内存使用达到maxmemory时，需要选择设置好的maxmemory-policy进行对老数据的置换</p>
+<ul>
+<li><p>noeviction: 不进行置换，表示即使内存达到上限也不进行置换，所有能引起内存增加的命令都会返回error</p>
+</li>
+<li><p>allkeys-lru: 优先删除掉最近最不经常使用的key，用以保存新数据</p>
+</li>
+<li><p>volatile-lru: 只从设置失效（expire set）的key中选择最近最不经常使用的key进行删除，用以保存新数据</p>
+</li>
+<li><p>allkeys-random: 随机从all-keys中选择一些key进行删除，用以保存新数据</p>
+</li>
+<li><p>volatile-random: 只从设置失效（expire set）的key中，选择一些key进行删除，用以保存新数据</p>
+</li>
+<li><p>volatile-ttl: 只从设置失效（expire set）的key中，选出存活时间（TTL）最短的key进行删除，用以保存新数据</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="title">LRULinkedHashMap</span><span class="params">(<span class="keyword">int</span> maxCapacity)</span> </span>&#123; </span><br><span class="line">	<span class="keyword">super</span>(maxCapacity, DEFAULT_LOAD_FACTOR, <span class="keyword">true</span>); </span><br><span class="line">	<span class="keyword">this</span>.maxCapacity = maxCapacity; </span><br><span class="line">&#125; </span><br><span class="line"><span class="meta">@Override</span> </span><br><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">boolean</span> <span class="title">removeEldestEntry</span><span class="params">(java.util.Map.Entry&lt;K, V&gt; eldest)</span> </span>&#123; </span><br><span class="line">	<span class="keyword">return</span> size() &gt; maxCapacity; </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+</li>
+<li><p>使用redis如何设计分布式锁？使用zk可以吗？如何实现？这两种哪个效率高？</p>
+<p>redis锁定的原理是利用setnx命令，即只有在某个key不存在情况才能set成功该key。这样就达到了多个进程并发去set同一个key，只有一个进程能set成功。</p>
+</li>
+<li><p>zookeeper实现了类似paxos协议，是一个拥有多个节点分布式协调服务？</p>
+<p>zookeeper实现锁的方式是客户端一起竞争写某条数据，比如/path/lock，只有第一个客户端能写入成功，其他的客户端都会写入失败。写入成功的客户端就获得了锁，写入失败的客户端，注册watch事件，等待锁的释放，从而继续竞争该锁。</p>
+</li>
+</ol>
+</li>
+</ol>
+<h1 id="数据库"><a href="#数据库" class="headerlink" title="数据库"></a>数据库</h1><ol>
+<li><p>数据库索引问题，就是最左前缀问题  联合索引 (A.B)，查询时where B =  会走索引吗，where A = 会走吗？</p>
+<p>最左前缀匹配问题。</p>
+</li>
+<li><p>创建复合索引时应该将最常用作限制条件的列放在最左边，依次递减。不要过度索引</p>
+</li>
+<li><p>sql优化有哪些思路？</p>
+<p>应尽量避免全表扫描，首先应考虑在 where 及 order by ,group by 涉及的列上建立索引。最左前缀匹配原则，非常重要的原则，mysql会一直向右匹配直到遇到范围查询(&gt;、&lt;、between、like)就停止匹配</p>
+</li>
+<li><p>设计高并发系统数据库层面该怎么设计？数据库锁有哪些类型？如何实现？</p>
+<ul>
+<li><p>数据库服务器采用集群方式部署。</p>
+</li>
+<li><p>数据库层面，主要就是用到垂直分库，水平分库， 读写分离，热备份等技术，提高数据库的读写能力</p>
+</li>
+</ul>
+</li>
+<li><p>数据库锁？</p>
+<p>悲观锁 for update</p>
+<p>乐观锁  版本号    CAS</p>
+</li>
+<li><p>数据库事务有哪些？</p>
+<p>事务应该具有4个属性：原子性、一致性、隔离性、持久性。这四个属性通常称为ACID特性</p>
+<ul>
+<li>原子性（Atomicity）：事务作为一个整体被执行，包含在其中的对数据库的操作要么全部被执行，要么都不执行。</li>
+<li>一致性（Consistency）：事务应确保数据库的状态从一个一致状态转变为另一个一致状态。一致状态的含义是数据库中的数据应满足完整性约束。</li>
+<li>隔离性（Isolation）：一个事务的执行不能被其他事务干扰。</li>
+<li>持久性（Durability）：一个事务一旦提交，他对数据库的修改应该永久保存在数据库中</li>
+</ul>
+</li>
+<li><p>为什么要分库分表？</p>
+<p>性能问题，索引问题等</p>
+</li>
+<li><p>分库分表方案应该尽量避免的两个问题？</p>
+<p>数据迁移 热点  </p>
+</li>
+<li><p>如何设计可以动态扩容缩容的分库分表方案？</p>
+</li>
+</ol>
+<h1 id="网络"><a href="#网络" class="headerlink" title="网络"></a>网络</h1><ol>
+<li><p>cookie与session区别 ?</p>
+</li>
+<li><p>post与get区别 ?</p>
+</li>
+<li><p>一个网址url从浏览器中输入后发生了什么？</p>
+</li>
+</ol>
+<h1 id="客观"><a href="#客观" class="headerlink" title="客观"></a>客观</h1><ol>
+<li>客观印象最深的bug是什么？如何解决的？如何防止？</li>
+<li>如何学习一个新技术，团队需要有人来学习，有没有自己的方法论？    </li>
+</ol>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/面试/" rel="tag"># 面试</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/03/31/走在自己的时区里/" rel="next" title="走在自己的时区里">
+                <i class="fa fa-chevron-left"></i> 走在自己的时区里
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/07/15/Git回滚到特定版本/" rel="prev" title="Git回滚到特定版本">
+                Git回滚到特定版本 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+    <div class="comments" id="comments">
+      <div id="SOHUCS"></div>
+    </div>
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+      <div id="sidebar-dimmer"></div>
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/avatar.png" alt="elichn">
+            
+              <p class="site-author-name" itemprop="name">elichn</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">15</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">10</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">10</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/elichn" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="http://weibo.com/chenjian1567" target="_blank" title="Weibo">
+                      
+                        <i class="fa fa-fw fa-weibo"></i>Weibo</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#记在前面"><span class="nav-number">1.</span> <span class="nav-text">记在前面</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#java基础"><span class="nav-number">2.</span> <span class="nav-text">java基础</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#集合"><span class="nav-number">2.1.</span> <span class="nav-text">集合</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#线程池"><span class="nav-number">2.2.</span> <span class="nav-text">线程池</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#并发"><span class="nav-number">2.3.</span> <span class="nav-text">并发</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#反射"><span class="nav-number">2.4.</span> <span class="nav-text">反射</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#设计模式"><span class="nav-number">2.5.</span> <span class="nav-text">设计模式</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#框架"><span class="nav-number">3.</span> <span class="nav-text">框架</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#spring"><span class="nav-number">3.1.</span> <span class="nav-text">spring</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#springboot"><span class="nav-number">3.2.</span> <span class="nav-text">springboot</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#springmvc"><span class="nav-number">3.3.</span> <span class="nav-text">springmvc</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#mybatis"><span class="nav-number">3.4.</span> <span class="nav-text">mybatis</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#JVM"><span class="nav-number">4.</span> <span class="nav-text">JVM</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#redis"><span class="nav-number">5.</span> <span class="nav-text">redis</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#数据库"><span class="nav-number">6.</span> <span class="nav-text">数据库</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#网络"><span class="nav-number">7.</span> <span class="nav-text">网络</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#客观"><span class="nav-number">8.</span> <span class="nav-text">客观</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">
+  
+  &copy; 2016 - 
+  <span itemprop="copyrightYear">2019</span>
+  <span class="author" itemprop="copyrightHolder">&nbsp;&nbspelichn</span>
+  &nbsp;&nbsp;|&nbsp;&nbsp;
+  Powered by  <a class="theme-link" href="https://hexo.io">Hexo</a> 
+  &nbsp;&nbsp;|&nbsp;&nbsp;
+  Theme -
+  <a class="theme-link" href="https://github.com/iissnan/hexo-theme-next">
+    NexT.Mist
+  </a>
+</div>
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  <script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+  <script src="//unpkg.com/valine/dist/Valine.min.js"></script>
+  
+  <script type="text/javascript">
+    var GUEST = ['nick','mail','link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item=>{
+      return GUEST.indexOf(item)>-1;
+    });
+    new Valine({
+        el: '#comments' ,
+        verify: false,
+        notify: false,
+        appId: 'y0DXrxHU1nEOp1Xp3mQaq3ut-gzGzoHsz',
+        appKey: 'OFY2cQnpe0UA7dQF8A4CVTMv',
+        placeholder: 'Just go go',
+        avatar:'mm',
+        guest_info:guest,
+        pageSize:'10' || 10,
+    });
+  </script>
+
+
+
+  
+
+  <script type="text/javascript">
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url);
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x" /></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x" /></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+  <script src="https://cdn1.lncld.net/static/js/av-core-mini-0.6.4.js"></script>
+  <script>AV.initialize("y0DXrxHU1nEOp1Xp3mQaq3ut-gzGzoHsz", "OFY2cQnpe0UA7dQF8A4CVTMv");</script>
+  <script>
+    function showTime(Counter) {
+      var query = new AV.Query(Counter);
+      var entries = [];
+      var $visitors = $(".leancloud_visitors");
+
+      $visitors.each(function () {
+        entries.push( $(this).attr("id").trim() );
+      });
+
+      query.containedIn('url', entries);
+      query.find()
+        .done(function (results) {
+          var COUNT_CONTAINER_REF = '.leancloud-visitors-count';
+
+          if (results.length === 0) {
+            $visitors.find(COUNT_CONTAINER_REF).text(0);
+            return;
+          }
+
+          for (var i = 0; i < results.length; i++) {
+            var item = results[i];
+            var url = item.get('url');
+            var time = item.get('time');
+            var element = document.getElementById(url);
+
+            $(element).find(COUNT_CONTAINER_REF).text(time);
+          }
+          for(var i = 0; i < entries.length; i++) {
+            var url = entries[i];
+            var element = document.getElementById(url);
+            var countSpan = $(element).find(COUNT_CONTAINER_REF);
+            if( countSpan.text() == '') {
+              countSpan.text(0);
+            }
+          }
+        })
+        .fail(function (object, error) {
+          console.log("Error: " + error.code + " " + error.message);
+        });
+    }
+
+    function addCount(Counter) {
+      var $visitors = $(".leancloud_visitors");
+      var url = $visitors.attr('id').trim();
+      var title = $visitors.attr('data-flag-title').trim();
+      var query = new AV.Query(Counter);
+
+      query.equalTo("url", url);
+      query.find({
+        success: function(results) {
+          if (results.length > 0) {
+            var counter = results[0];
+            counter.fetchWhenSave(true);
+            counter.increment("time");
+            counter.save(null, {
+              success: function(counter) {
+                var $element = $(document.getElementById(url));
+                $element.find('.leancloud-visitors-count').text(counter.get('time'));
+              },
+              error: function(counter, error) {
+                console.log('Failed to save Visitor num, with error message: ' + error.message);
+              }
+            });
+          } else {
+            var newcounter = new Counter();
+            /* Set ACL */
+            var acl = new AV.ACL();
+            acl.setPublicReadAccess(true);
+            acl.setPublicWriteAccess(true);
+            newcounter.setACL(acl);
+            /* End Set ACL */
+            newcounter.set("title", title);
+            newcounter.set("url", url);
+            newcounter.set("time", 1);
+            newcounter.save(null, {
+              success: function(newcounter) {
+                var $element = $(document.getElementById(url));
+                $element.find('.leancloud-visitors-count').text(newcounter.get('time'));
+              },
+              error: function(newcounter, error) {
+                console.log('Failed to create');
+              }
+            });
+          }
+        },
+        error: function(error) {
+          console.log('Error:' + error.code + " " + error.message);
+        }
+      });
+    }
+
+    $(function() {
+      var Counter = AV.Object.extend("Counter");
+      if ($('.leancloud_visitors').length == 1) {
+        addCount(Counter);
+      } else if ($('.post-title-link').length > 1) {
+        showTime(Counter);
+      }
+    });
+  </script>
+
+
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
