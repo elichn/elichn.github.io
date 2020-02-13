@@ -85,7 +85,7 @@ deploy:
   type: git
   repo: git@github.com:elichn/elichn.github.io.git
   branch: master
-  # message: cpu爆满
+  message: Mysql存储空间打满
   
 backup:
   type: git
