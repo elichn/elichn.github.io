@@ -1,6 +1,166 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>qmq 消费者收不到消息（消息过大）</title>
+    <url>/2020/11/12/qmq%20%E6%B6%88%E8%B4%B9%E8%80%85%E6%94%B6%E4%B8%8D%E5%88%B0%E6%B6%88%E6%81%AF%EF%BC%88%E6%B6%88%E6%81%AF%E8%BF%87%E5%A4%A7%EF%BC%89/</url>
+    <content><![CDATA[<h2 id="问题描述"><a href="#问题描述" class="headerlink" title="问题描述"></a>问题描述</h2><p>导课是通过qmq异步处理然后http导入到私有化公司的。<br><a id="more"></a></p>
+<ul>
+<li>2020-11-10 15:58:08，客户成功给私有化公司美术宝导课，反馈没有导入成功，排查日志后生产者发送mq成功，消费者未收到消息，以为是qmq丢消息，继续观察（此时没有注意mq的消息体的大小，导课一次导入了30门课）</li>
+<li>2020-11-11 10:06:41，客户成功反馈又导入了10门课，让我核对下是不是都导入成功的，经查询，消费者成功收到了消息，导课是成功的。纳闷为啥昨天丢消息了</li>
+<li>2020-11-11 10:25:17，客户成功再次给私有化公司美术宝导课，让我核对下，总共导了42门课，发现没有导入成功，还是同一个原因，消费者没有收到消息。又复现了，应该不是qmq本身丢消息的问题，3次不可能丢2次，排查日志，结合客户成功导课的数量，猜测应该是消息过大导致的问题，先让客户成功，分批次导课，一次导入10门课，尝试。当天13:57-14：40，42门课分4次导入，成功，没有丢消息。业务正常，美术宝可以使用三节课提供的课程，可以使用学习功能。</li>
+<li>2020-11-11 13:57-14：40，总共导课4次，均导课成功</li>
+</ul>
+<h2 id="问题定位"><a href="#问题定位" class="headerlink" title="问题定位"></a>问题定位</h2><p>从表象看，已经很明显，就是一次导课的数量太多，一次mq的消息体太大，导致丢消息。学习支持私有化刚上线，为保证业务正常，让客户成功一次导课的数量控制下，控制在10门。</p>
+<p>排查代码，代码中没有对消息过大做处理，代码如下：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">    Message message = producer.﻿generateMessage﻿(﻿CopyCourseToPrivatizationConst﻿.SUBJECT_CONST)﻿;</span><br><span class="line">    message.﻿setProperty﻿(﻿CopyCourseToPrivatizationConst﻿.PROPERTY_KEYS_CONST, JSON.﻿toJSONString﻿(toPrivatizationDTO)﻿)﻿;</span><br><span class="line">    message.﻿setMaxRetryNum﻿(﻿MQCommonConst﻿.MAX_RETRY_TIMES)﻿;</span><br><span class="line">    producer.﻿sendMessage﻿(message, <span class="keyword">new</span> MessageSendStateListener﻿(﻿) &#123;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onSuccess</span>﻿<span class="params">(﻿Message message)</span> </span>&#123;</span><br><span class="line">            log.﻿info﻿(﻿<span class="string">"导入课程到私有化公司发送qmq成功: [&#123;&#125;]"</span>﻿, JSON.﻿toJSONString﻿(message)﻿)﻿;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onFailed</span>﻿<span class="params">(﻿Message message)</span> </span>&#123;</span><br><span class="line">            log.﻿error﻿(﻿<span class="string">"导入课程到私有化公司发送qmq失败:[&#123;&#125;]"</span>﻿, JSON.﻿toJSONString﻿(message)﻿)﻿;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;﻿)﻿;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>﻿<br>查询qmq官网已对这种情况做了<a href="https://github.com/qunarcorp/qmq/blob/master/docs/cn/producer.md" target="_blank" rel="noopener">说明</a>﻿</p>
+<p>QMQ的Message.setProperty(key, value)如果value是字符串，<strong>则value的大小默认不能超过32K</strong>，如果你需要传输超大的字符串，请务必使用message.setLargeString(key, value)，这样你甚至可以传输十几兆的内容了，但是消费消息的时候也需要使用message.getLargeString(key)。</p>
+<p><img src="/images/mq/qmq-01.png" alt></p>
+<p>﻿</p>
+<p>查看qmq源码得到的结论一样：</p>
+<p><img src="/images/mq/qmq-02-code.png" alt><br><img src="/images/mq/qmq-05.jpg" alt><br><strong>本质还是消息体超过32k，生产者发送消息就失败了</strong></p>
+<h2 id="问题修复"><a href="#问题修复" class="headerlink" title="问题修复"></a>问题修复</h2><p>按提示当消息体大于32k（value长度大于8192），用message.setLargeString(key, value)，消费者则使用message.getLargeString(key)获取，该修改在下一个迭代上线，不影响业务。</p>
+<p><img src="/images/mq/qmq-03-producer.png" alt></p>
+<p>﻿</p>
+<p><img src="/images/mq/qmq-04-consumer.png" alt></p>
+<h2 id="问题总结"><a href="#问题总结" class="headerlink" title="问题总结"></a>问题总结</h2><p>在看其他项目中，用qmq的地方已经有对消息过大有做处理。其他同学应该遇到过这个坑。</p>
+<p>qmq的Message.setProperty(key, value)，如果value是字符串，则value的大小默认不能超过32K，如果你需要传输超大的字符串，请务必使用message.setLargeString(key, value)，这样你甚至可以传输十几兆的内容了，但是消费消息</p>
+<p>的时候也需要使用message.getLargeString(key)。</p>
+]]></content>
+      <categories>
+        <category>mq</category>
+      </categories>
+      <tags>
+        <tag>mq</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>学习私有化部署方案</title>
+    <url>/2020/09/21/%E5%AD%A6%E4%B9%A0%E7%A7%81%E6%9C%89%E5%8C%96%E9%83%A8%E7%BD%B2%E6%96%B9%E6%A1%88/</url>
+    <content><![CDATA[<h1 id="学习私有化业务流程图"><a href="#学习私有化业务流程图" class="headerlink" title="学习私有化业务流程图"></a>学习私有化业务流程图</h1><p><img src="/images/code/private-01.png" alt><br><a id="more"></a></p>
+<h1 id="saas访问私有化公司授权"><a href="#saas访问私有化公司授权" class="headerlink" title="saas访问私有化公司授权"></a>saas访问私有化公司授权</h1><p><img src="/images/code/private-02.png" alt></p>
+<h1 id="私有化公司访问saas授权"><a href="#私有化公司访问saas授权" class="headerlink" title="私有化公司访问saas授权"></a>私有化公司访问saas授权</h1><p><img src="/images/code/private-03.png" alt></p>
+<h1 id="私有化获取课程内容流程"><a href="#私有化获取课程内容流程" class="headerlink" title="私有化获取课程内容流程"></a>私有化获取课程内容流程</h1><p><img src="/images/code/private-04.png" alt></p>
+]]></content>
+      <categories>
+        <category>后端</category>
+      </categories>
+      <tags>
+        <tag>后端</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>服务请求缓慢</title>
+    <url>/2020/06/11/%E6%9C%8D%E5%8A%A1%E8%AF%B7%E6%B1%82%E7%BC%93%E6%85%A2/</url>
+    <content><![CDATA[<h1 id="概要"><a href="#概要" class="headerlink" title="概要"></a>概要</h1><p>生产页面请求缓慢，短时不可访问  </p>
+<h1 id="事件回顾"><a href="#事件回顾" class="headerlink" title="事件回顾"></a>事件回顾</h1><ul>
+<li><p>14:40    开始，服务监控报警开始频繁报 接口超时数量 达到阈值。<a id="more"></a>检查服务器负载，发现某台机器核心服务进程负载超高（150%以上）， jstack检查java进程， 发现大量线程block在同一段代码AuthUtils.java的180行： 这是一条日志打印。 根据以往经验，感知到这是大量日志导致频繁IO。**</p>
+</li>
+<li><p>15:30   相关研发开始修改代码，删除该条日志。</p>
+</li>
+<li><p>15:40   向测试发起了hotfix紧急流程， 开始上线。</p>
+</li>
+<li><p>16:10   上线过程中，生产出现了小于1分钟的完全不可访问情况。查看监控，新上线机器资源瞬间被耗尽，经过排查，原因是时间持续期间大量的的前端保存了大量的报错日志堆积，服务上线后全部请求到后端，导致资源耗尽。😢</p>
+</li>
+<li><p>16:15   堆积的请求消费完毕后，服务恢复。</p>
+</li>
+</ul>
+<p>﻿<img src="/images/shigu/shigu-01-thread.png" alt><br>﻿<img src="/images/shigu/shigu-02-tomcat.png" alt><br>﻿<img src="/images/shigu/shigu-03-logevent.png" alt></p>
+<h1 id="总结教训"><a href="#总结教训" class="headerlink" title="总结教训"></a>总结教训</h1><ol>
+<li><p>日志像水， 能载舟亦能覆舟。</p>
+<p>很多情况下，日志对于我们排查问题非常有帮助，但一定注意度的问题。过多的日志能耗死我们的正常服务。😱</p>
+</li>
+<li><p>限流逻辑    </p>
+<p> 前端对于堆积请求，考虑限流逻辑。</p>
+<p> 后端考虑限流和降级逻辑。</p>
+</li>
+<li><p>报警很重要！！</p>
+<p> 及时响应报警信息， 尤其是超时，GC等。  </p>
+</li>
+</ol>
+]]></content>
+      <categories>
+        <category>后端</category>
+      </categories>
+      <tags>
+        <tag>后端</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>后端研发代码规则</title>
+    <url>/2020/04/08/%E5%90%8E%E7%AB%AF%E4%BB%A3%E7%A0%81%E7%A0%94%E5%8F%91%E8%A7%84%E5%88%99/</url>
+    <content><![CDATA[<h1 id="总则"><a href="#总则" class="headerlink" title="总则"></a>总则</h1><p>后端代码按照<strong>阿里巴巴Java开发手册终极版v1.3.0.pdf</strong>执行，请新同学老同学都阅读下。</p>
+<p>附 <a href="https://google.github.io/styleguide/javaguide.html" target="_blank" rel="noopener">Google Java Style Guide</a></p>
+<p>特别需要关注的点如下，如果与上述规范不一致，以下方为准。<br><a id="more"></a></p>
+<p>推荐Save Actions 插件， 可以在你保存的时候，自动执行一些优化和format</p>
+<p><a href="https://plugins.jetbrains.com/plugin/7642-save-actions" target="_blank" rel="noopener">https://plugins.jetbrains.com/plugin/7642-save-actions</a></p>
+<h1 id="注释"><a href="#注释" class="headerlink" title="注释"></a>注释</h1><ol>
+<li>所有文件指明作者， 复制的类，保留原作者， 复制后大量修改，修改为自己。</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * &lt;p&gt;Title: $&#123;NAME&#125;&lt;/p&gt;</span></span><br><span class="line"><span class="comment"> * &lt;p&gt;Description: $&#123;NAME&#125;&lt;/p&gt;</span></span><br><span class="line"><span class="comment"> * &lt;p&gt;Company: sanjieke&lt;/p&gt;</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@author</span> 姓名拼音</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@version</span> 1.0</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@date</span> $&#123;DATE&#125;</span></span><br><span class="line"><span class="comment"> */</span></span><br></pre></td></tr></table></figure>
+<p>具体设置如下<br><br>idea配置如下：Preferences-&gt;Editor-&gt;File and Code Tempaltes-&gt;Includes-&gt;File Header</p>
+<p><img src="/images/code/code-template.png" alt></p>
+<ol start="2">
+<li><p>所有的静态变量需要有注释。</p>
+</li>
+<li><p>注释应写在被注释对象的上方，而不是后方。</p>
+</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 正确的</span></span><br><span class="line"><span class="comment">// 如果abc， 则xxx</span></span><br><span class="line"><span class="keyword">if</span> (abc)&#123;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 禁止的</span></span><br><span class="line"><span class="keyword">if</span> (abc)&#123;  <span class="comment">// 如果abc， 则xxx</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ol start="4">
+<li>interface方法， VO， TO， PARAM， RESULT 使用javadoc的注释方式。 被swagger注解的对象，可以不写注释。</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 正确的</span></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 年龄</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">int</span> age;</span><br><span class="line"></span><br><span class="line"><span class="meta">@ModelProperty</span>(<span class="string">"姓名"</span>)</span><br><span class="line"><span class="keyword">private</span> String name;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 不建议的</span></span><br><span class="line"><span class="comment">// 年龄</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">int</span> age；</span><br></pre></td></tr></table></figure>
+<h1 id="命名"><a href="#命名" class="headerlink" title="命名"></a>命名</h1><ol>
+<li><p>restful接口，统一使用中划线命名方法， 如 get-by-id，（老接口不做变动）</p>
+</li>
+<li><p>server接口统一为 /服务名/xxx/xxx， 如 /tm-object-server/attachment/get-by-key</p>
+</li>
+<li><p>字段和方法名称不宜过长， 比如  getAttachmentKeyByUsernameAndCompanyNameWithSort();</p>
+</li>
+<li><p>interface的名称， 方法名， 参数名都是方法签名的一部分，都可以描述方法， 假设方法本身在AttachmentService下， 那么：</p>
+</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">AttachmentService.getSortedKey(String username, String companyName);</span><br></pre></td></tr></table></figure>
+<p>就已经包含方法的完整用途了， 没必要完全放在方法名称里。</p>
+<p>同理， 对于字段名称，如果单词过长，可以做合理缩写，并且保证整份代码里的缩写方式一致，在类开头注释一下即可。</p>
+<ol start="5">
+<li><p>所有工具类命名为 utils 而非 util，工具类建议定义为 final 类或者 abstract 类，如果定义为 final 类，则构造方法必须使用 private 修饰构造方法，工具类禁止构造实例调用其方法，推荐使用 “类名.方法” 形式调用方法。</p>
+</li>
+<li><p>所有枚举类以Enum结尾。</p>
+</li>
+<li><p>静态值集合类，以Const 或者 Constant 结尾。</p>
+</li>
+<li><p>枚举里的对象，建议使用raw type 而不是包装类， 特别是 int 之类。</p>
+</li>
+<li><p>VO， TO， DTO 全部大写，不需要写成  Vo， To， Dto。</p>
+</li>
+<li><p>字段不建议使用 is 开头，不同的序列化框架对 is 开头的字段处理不一样，可能会导致意外的情况。</p>
+</li>
+</ol>
+<h1 id="格式化"><a href="#格式化" class="headerlink" title="格式化"></a>格式化</h1><ol>
+<li><p>新的文件和代码必须格式化， Command + Option + L</p>
+</li>
+<li><p>旧的文件，如果该文件只有你一个人在修改，建议格式化， 如有多人同时修改，不要执行格式化。</p>
+</li>
+</ol>
+<h1 id="接口"><a href="#接口" class="headerlink" title="接口"></a>接口</h1><ol>
+<li><p>service层必须有接口；</p>
+</li>
+<li><p>Mybatis 中的 mapper 全部使用 @Resource 注解，不推荐使用 @Autowired 注解；</p>
+</li>
+<li><p>新的 Service 层推荐使用 Dao，不建议直接注入 Mapper；</p>
+</li>
+</ol>
+]]></content>
+      <categories>
+        <category>后端</category>
+      </categories>
+      <tags>
+        <tag>后端</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>CPU爆满处理</title>
     <url>/2019/11/12/CPU%E7%88%86%E6%BB%A1/</url>
     <content><![CDATA[<h1 id="记在前面"><a href="#记在前面" class="headerlink" title="记在前面"></a>记在前面</h1><p>记录一次生产环境服务器CPU爆满的排查和处理过程。<a id="more"></a></p>
@@ -641,6 +801,13 @@
     <content><![CDATA[<h1 id="反向代理"><a href="#反向代理" class="headerlink" title="反向代理"></a>反向代理</h1><p>我们通常称 Nginx 是一个反向代理服务器，那么到底什么是反向代理，什么是正向代理？<a id="more"></a><br>可以这样理解：主要区别在于，到底是客户端还是服务器做的代理。<br>如果是客户端发送请求时使用的代理，就是正向代理；<br>而服务器端接收到客户端的请求时使用代理转移到其他服务器则是反向代理。</p>
 <p>A找B直接沟通，这就等于没有什么代理；而中间夹一个传话的C，C就是代理了，A通过C把信息传递给B，然后C再把B的反馈转达给A。<br>对于ABC例子，正向代理可以理解为:C作为A的代理人去找B，而反向代理中的C更像是B的代理人，去向A做反馈</p>
 <h1 id="nginx重启"><a href="#nginx重启" class="headerlink" title="nginx重启"></a>nginx重启</h1><figure class="highlight java"><table><tr><td class="code"><pre><span class="line">nginx -s reload</span><br></pre></td></tr></table></figure>
+<h1 id="请求转发算法"><a href="#请求转发算法" class="headerlink" title="请求转发算法"></a>请求转发算法</h1><ul>
+<li>轮询（默认）</li>
+<li>权重</li>
+<li>ip hash（解决session问题）</li>
+<li>url hash(同一台服务器)</li>
+<li>fair （服务器响应时间短的，优先分配）</li>
+</ul>
 ]]></content>
       <categories>
         <category>nginx</category>

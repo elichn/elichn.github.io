@@ -113,7 +113,7 @@
 <meta property="og:site_name" content="elichn">
 <meta property="og:description" content="反向代理我们通常称 Nginx 是一个反向代理服务器，那么到底什么是反向代理，什么是正向代理？">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2019-03-05T14:09:38.720Z">
+<meta property="og:updated_time" content="2020-03-11T10:42:25.864Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="nginx 记录">
 <meta name="twitter:description" content="反向代理我们通常称 Nginx 是一个反向代理服务器，那么到底什么是反向代理，什么是正向代理？">
@@ -424,6 +424,13 @@
         <h1 id="反向代理"><a href="#反向代理" class="headerlink" title="反向代理"></a>反向代理</h1><p>我们通常称 Nginx 是一个反向代理服务器，那么到底什么是反向代理，什么是正向代理？<a id="more"></a><br>可以这样理解：主要区别在于，到底是客户端还是服务器做的代理。<br>如果是客户端发送请求时使用的代理，就是正向代理；<br>而服务器端接收到客户端的请求时使用代理转移到其他服务器则是反向代理。</p>
 <p>A找B直接沟通，这就等于没有什么代理；而中间夹一个传话的C，C就是代理了，A通过C把信息传递给B，然后C再把B的反馈转达给A。<br>对于ABC例子，正向代理可以理解为:C作为A的代理人去找B，而反向代理中的C更像是B的代理人，去向A做反馈</p>
 <h1 id="nginx重启"><a href="#nginx重启" class="headerlink" title="nginx重启"></a>nginx重启</h1><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nginx -s reload</span><br></pre></td></tr></table></figure>
+<h1 id="请求转发算法"><a href="#请求转发算法" class="headerlink" title="请求转发算法"></a>请求转发算法</h1><ul>
+<li>轮询（默认）</li>
+<li>权重</li>
+<li>ip hash（解决session问题）</li>
+<li>url hash(同一台服务器)</li>
+<li>fair （服务器响应时间短的，优先分配）</li>
+</ul>
 
       
     </div>
@@ -552,7 +559,7 @@
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">16</span>
+                  <span class="site-state-item-count">20</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -563,7 +570,7 @@
               
               <div class="site-state-item site-state-categories">
                 <a href="/categories/index.html">
-                  <span class="site-state-item-count">11</span>
+                  <span class="site-state-item-count">13</span>
                   <span class="site-state-item-name">分类</span>
                 </a>
               </div>
@@ -574,7 +581,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">11</span>
+                  <span class="site-state-item-count">13</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
@@ -623,7 +630,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#反向代理"><span class="nav-number">1.</span> <span class="nav-text">反向代理</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#nginx重启"><span class="nav-number">2.</span> <span class="nav-text">nginx重启</span></a></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#反向代理"><span class="nav-number">1.</span> <span class="nav-text">反向代理</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#nginx重启"><span class="nav-number">2.</span> <span class="nav-text">nginx重启</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#请求转发算法"><span class="nav-number">3.</span> <span class="nav-text">请求转发算法</span></a></li></ol></div>
             
 
           </div>
