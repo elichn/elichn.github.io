@@ -35,12 +35,114 @@
       </tags>
   </entry>
   <entry>
+    <title>异常处理规范</title>
+    <url>/2020/10/18/%E5%BC%82%E5%B8%B8%E5%A4%84%E7%90%86%E8%A7%84%E8%8C%83/</url>
+    <content><![CDATA[<h2 id="try-catch代码块竟可能小范围"><a href="#try-catch代码块竟可能小范围" class="headerlink" title="try-catch代码块竟可能小范围"></a>try-catch代码块竟可能小范围</h2><p>保证try-catch的代码块尽可能小，以保证catch不会捕获你为意识到的异常，<a id="more"></a>特别是可能抛出的空指针。<br><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// badcase</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">doSomething</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        URL url = <span class="keyword">new</span> URL(<span class="string">""</span>);</span><br><span class="line">        String path = url.getPatch();</span><br><span class="line">        ......</span><br><span class="line">        <span class="comment">// 省略10086行</span></span><br><span class="line">        ......</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        dealException();</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;  </span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// better case</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">doSomething</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    URL url = <span class="keyword">null</span>;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        URL url = <span class="keyword">new</span> URL(<span class="string">""</span>);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (MalformedURLException e) &#123;</span><br><span class="line">        dealException();</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    String path = url.getPatch();</span><br><span class="line">    ......</span><br><span class="line">    <span class="comment">// 省略10086行</span></span><br><span class="line">    ......</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h2 id="尽可能捕获明确的异常"><a href="#尽可能捕获明确的异常" class="headerlink" title="尽可能捕获明确的异常"></a>尽可能捕获明确的异常</h2><p>配合第1点，代码块尽量小时，可以捕获更加明确的异常。</p>
+<p>时刻提醒自己可能出现其他异常。</p>
+<h2 id="使用断言"><a href="#使用断言" class="headerlink" title="使用断言"></a>使用断言</h2><p>此断言非java的 assert 关键字， 可以使用Spring 的Assert类<br><br></p>
+<p>所有public的接口调用， RPC远程调用。都是<strong>不可靠</strong>的。</p>
+<p>为了减少空指针异常带来的不确定性（NPE），请善用断言（Assert），fail-fast 逻辑。</p>
+<p>仅在按照约定，某个事件必不可能发送，一旦发生，你的业务逻辑也并无其他处理方案时（没有fallback）使用断言。</p>
+<p>使用断言配合message，可以快速的在日志，报警或者其他可视化系统中，发现并定位问题，也能给前端正确的异常提示，减少用户焦虑，加快排查问题的速度。</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// better case</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">doSomething</span><span class="params">(Doc doc)</span> </span>&#123;</span><br><span class="line">    Assert.notNull(doc, <span class="string">"doSomething时，文档不应该为空"</span>);</span><br><span class="line">    Long id = doc.getId();</span><br><span class="line">    ......</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">doSomething2</span><span class="params">(Long id)</span> </span>&#123;</span><br><span class="line">    Doc doc = docService.getDocById(id);</span><br><span class="line">    Assert.notNull(doc, <span class="string">"doSomething2时,根据id查询doc，文档不应该为空， id："</span> + id);</span><br><span class="line">    String name = doc.getName();</span><br><span class="line">    ......</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="不厌其烦的判空"><a href="#不厌其烦的判空" class="headerlink" title="不厌其烦的判空"></a>不厌其烦的判空</h2><ol>
+<li><p>会触发自动拆箱时。  如：   </p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">int</span> a = someInteger </span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (some <span class="keyword">int</span> == some Integer)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (some Boolean)</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>嵌套对象取值时：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">Long id = userInfoDTO.getUserInfo().getUserId();</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>从redis，数据库或其他DB获取值时。</p>
+</li>
+<li><p>调用其他人书写的方法时。</p>
+</li>
+<li><p><a href="https://emojipedia.org/warning/" target="_blank" rel="noopener">⚠️</a>调用自己，或第三方jar包提供的工具类时， 特别是：</p>
+</li>
+</ol>
+<p>&nbsp;&nbsp;&nbsp;parse</p>
+<p>&nbsp;&nbsp;&nbsp;get</p>
+<p>&nbsp;&nbsp;&nbsp;transform</p>
+<ol start="5">
+<li>参数校验写明message</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// badcase</span></span><br><span class="line"><span class="meta">@NotNull</span></span><br><span class="line"><span class="keyword">private</span> Long userId;</span><br><span class="line"></span><br><span class="line"><span class="meta">@NotBlank</span></span><br><span class="line"><span class="keyword">private</span> String name;</span><br><span class="line"></span><br><span class="line"><span class="comment">// better case</span></span><br><span class="line"><span class="meta">@NotNull</span>(<span class="string">"userId不能为空"</span>)</span><br><span class="line"><span class="keyword">private</span> Long userId;</span><br></pre></td></tr></table></figure>
+<ol start="6">
+<li>使用工具类判空</li>
+</ol>
+<p>优先使用</p>
+<ul>
+<li>Objects.equals(a,  b)</li>
+<li>StringUtils.isBlank(a);  </li>
+<li>StringUtils.isNotBlank(a);</li>
+<li>CollectionUtils.isEmpty(a);</li>
+</ul>
+<p>等工具类判断对象或者数据结构。</p>
+<ol start="7">
+<li>GlobalException的使用</li>
+</ol>
+<p>⚠️使用更精准的异常信息。</p>
+<p>不要单纯的使用 ResponseCodeEnum.FAIL,(即9999报错)</p>
+<p>对于特定的报错，请使用定义好的ResponseCode， 且他的message必须清晰。</p>
+<p>如果觉得务必要新建ResponseCode， 也应该使用 GlobalException(ResponseCodeEnum code, String message); 构造方法， 把详细的报错信息放入Exception中。</p>
+<p>不要单纯的使用 ResponseCodeEnum.FAIL,(即9999报错)</p>
+<p>对于特定的报错，请使用定义好的ResponseCode， 且他的message必须清晰。</p>
+<p>如果觉得务必要新建ResponseCode， 也应该使用 GlobalException(ResponseCodeEnum code, String message); 构造方法， 把详细的报错信息放入Exception中。</p>
+]]></content>
+      <categories>
+        <category>后端</category>
+      </categories>
+      <tags>
+        <tag>后端</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>学习私有化部署方案</title>
     <url>/2020/09/21/%E5%AD%A6%E4%B9%A0%E7%A7%81%E6%9C%89%E5%8C%96%E9%83%A8%E7%BD%B2%E6%96%B9%E6%A1%88/</url>
     <content><![CDATA[<h1 id="学习私有化业务流程图"><a href="#学习私有化业务流程图" class="headerlink" title="学习私有化业务流程图"></a>学习私有化业务流程图</h1><p><img src="/images/code/private-01.png" alt><br><a id="more"></a></p>
 <h1 id="saas访问私有化公司授权"><a href="#saas访问私有化公司授权" class="headerlink" title="saas访问私有化公司授权"></a>saas访问私有化公司授权</h1><p><img src="/images/code/private-02.png" alt></p>
 <h1 id="私有化公司访问saas授权"><a href="#私有化公司访问saas授权" class="headerlink" title="私有化公司访问saas授权"></a>私有化公司访问saas授权</h1><p><img src="/images/code/private-03.png" alt></p>
 <h1 id="私有化获取课程内容流程"><a href="#私有化获取课程内容流程" class="headerlink" title="私有化获取课程内容流程"></a>私有化获取课程内容流程</h1><p><img src="/images/code/private-04.png" alt></p>
+]]></content>
+      <categories>
+        <category>后端</category>
+      </categories>
+      <tags>
+        <tag>后端</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>日志规范</title>
+    <url>/2020/07/25/%E6%97%A5%E5%BF%97%E8%A7%84%E8%8C%83/</url>
+    <content><![CDATA[<h1 id="基本要素"><a href="#基本要素" class="headerlink" title="基本要素"></a>基本要素</h1><p>一行日志的基本要素必须包含<strong>时间戳</strong>， <strong>日志等级</strong>，<strong>traceId</strong>，<strong>线程名称</strong>，<strong>日志所在类（logger名称）</strong>，<strong>日志内容</strong> 等要素。<br><br>特别的，对于接口层日志，还应该包含 <strong>请求URL</strong>。<br><a id="more"></a><br>对于 <strong>日志内容</strong>， 必须包含：<br></p>
+<ul>
+<li>“中文问题或操作描述”，（强烈建议中文，一是一眼看明白，二是中文很容易在一堆框架日志中凸显出来）。</li>
+<li>中文描述前使用 ’[]’用一两个词表示这一组日志是在做什么功能的（或本次调用是做什么功能的）。</li>
+<li>所有需要登录的请求，必须打印用户id（RequestInfoUtils）。</li>
+<li>文档id（课程id），空间id，以及其他所有正在操作的实体id。 若有，则必须打印（不用特别只为日志调接口获取）。</li>
+<li>远程调用时的日志，必须打印参数。</li>
+</ul>
+<p>对于对象打印：<br><br>建议直接使用log格式， 直接把对象传给logger即可，不需要手动toJSON。<br><br>普通日志格式和json格式，都能被常见的日志框架直接解析。<br></p>
+<h1 id="常见日志场景"><a href="#常见日志场景" class="headerlink" title="常见日志场景"></a>常见日志场景</h1><ol>
+<li>controller层参数和返回值（强制）： “请求进入”和“请求返回”必须打印日志（common实现）。</li>
+<li>service层参数和返回值（建议）：如无必要，不需要打印“请求进入”和“请求返回”。</li>
+<li><p>rpc调用前后的日志（优先）：rpc调用前后打印调用参数和返回值，但对于下方有异常校验，返回值校验的请求可以不打印。<br>well case:</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">InnerRequest&lt;DocParam&gt; request = <span class="keyword">new</span> InnerRequest&lt;&gt;();</span><br><span class="line">log.info(<span class="string">"[点赞]请求doc-server获取文档内容-request:&#123;&#125;"</span>, request.getData());</span><br><span class="line">DocResult result = InnerResponseUtils.get(docClient.queryDoc(request));</span><br><span class="line"></span><br><span class="line"><span class="comment">// 因为下方校验了返回值，且在出现错误时会打印错误日志，所以此处不需要打印返回结果。</span></span><br><span class="line"><span class="keyword">if</span> (result == <span class="keyword">null</span> || StringUtils.isBlank(result.getContentJson()) &#123;</span><br><span class="line">    log.error(<span class="string">"[点赞]请求doc-server获取文档内容失败，返回值为空或者内容为空-result:&#123;&#125;"</span>, result)</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> GlobalException(<span class="string">"xxx"</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>参数校验和结果校验（强制）：所有校验不通过提前结束流程的分支，必须打印日志，且需要包含问题描述和具体参数或返回值。<br>badcase：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="class"><span class="keyword">class</span> <span class="title">DocParam</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 验证注解不写明错误消息</span></span><br><span class="line">    <span class="meta">@NotNull</span></span><br><span class="line">    <span class="keyword">private</span> Long docId;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">......</span><br><span class="line"><span class="keyword">if</span> (param.getCreateTime() &lt; someDate) &#123;</span><br><span class="line">    <span class="comment">// 提前中断没有日志</span></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">&#125;</span><br><span class="line">Doc doc = doSomething(param.getCreateTime());</span><br><span class="line"><span class="keyword">if</span> (doc == <span class="keyword">null</span>) &#123;</span><br><span class="line">    <span class="comment">// 提前中断没有日志</span></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> Doc();</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">if</span> (StringUtils.isBlank(doc.getDocContentJson()) &#123;</span><br><span class="line">    <span class="comment">// 没有打印方法入参</span></span><br><span class="line">    log.error(<span class="string">"[发布评论]查询文档内容为空"</span>);</span><br><span class="line">    <span class="comment">// 没有说清楚具体错误</span></span><br><span class="line">    log.error(<span class="string">"[发布评论]查询文档报错了-param:&#123;&#125;"</span>, param);  </span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> GlobalException(<span class="string">"xxx"</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>mq消息的发送与接收（强制）：mq的发送必须打印完整的消息体。 mq的consume必须打印完整的消息体。</p>
+</li>
+<li>异常捕获（强制）：异常捕获必须打印日志，必须有错误描述，必须打印当前方法的入参。除非是checked的异常，否则都应该打印异常栈。<br></li>
+</ol>
+<p>badcase：<br><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">    doSomething();</span><br><span class="line">&#125; catchException e) &#123;</span><br><span class="line">&#125;  <span class="comment">// 啥也不干</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">    doSomething();</span><br><span class="line">&#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">    doSomethingOthers();</span><br><span class="line">&#125;  <span class="comment">// 不打日志</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">    doSomething();</span><br><span class="line">&#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">    doSomethingOthers();</span><br><span class="line">    <span class="comment">// 完全没用</span></span><br><span class="line">    log.error(<span class="string">"[some]出错了"</span>);   </span><br><span class="line">     <span class="comment">// 没有详细信息</span></span><br><span class="line">    log.error(<span class="string">"[some]doSomething出错了"</span>); </span><br><span class="line">    <span class="comment">// 没有打印异常, 排错困难</span></span><br><span class="line">    log.error(<span class="string">"[some]doSomething出错了-param:&#123;&#125;"</span>, param);   </span><br><span class="line">    <span class="comment">// 异常被toString， 没有堆栈</span></span><br><span class="line">    log.error(<span class="string">"[some]doSomething出错了-param:&#123;&#125;, exception:&#123;&#125;"</span>, param, e);    </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<ol start="7">
+<li>循环体（强制）：循环体不要打印info级别的日志，其他规则遵循1-6。<br></li>
+</ol>
+<p>badcase：<br><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">for</span> (Doc doc : list) &#123;</span><br><span class="line">    log.info(<span class="string">"[文档列表]开始处理-id:&#123;&#125;"</span>, doc.getId());   <span class="comment">// debug或者脚本进度条有用，其他情况就别了。</span></span><br><span class="line">    <span class="keyword">boolean</span> result = doSomething();</span><br><span class="line">    log.info(<span class="string">"[文档列表]处理结束-id:&#123;&#125;， result:&#123;&#125;"</span>, doc.getId(), result);</span><br><span class="line">    ......</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>well case：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">log.info(<span class="string">"[文档列表]开始处理文档列表"</span>);  <span class="comment">// 批量参数可以没有， 通过trace能看到前面的调用。</span></span><br><span class="line"><span class="keyword">for</span> (Doc doc : list) &#123;</span><br><span class="line">    <span class="keyword">boolean</span> result = doSomething();</span><br><span class="line">    <span class="keyword">if</span> (!result) &#123;</span><br><span class="line">        log.info(<span class="string">"[文档列表]处理文档失败-文档id:&#123;&#125;"</span>, doc.getId());    <span class="comment">// 仅打印错误的id</span></span><br><span class="line">    &#125;</span><br><span class="line">    ......</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 ]]></content>
       <categories>
         <category>后端</category>
