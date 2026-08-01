@@ -27,16 +27,16 @@
 <meta property="og:site_name" content="elichn">
 <meta property="og:description" content="Redis set问题- 2024-11-15手动修改用户信息再设值时，报-ERR wrong number of arguments for ‘set’ command，值是json对象的字符串，以为是要转义，转义后也不行，给值加上单引号，双引号也都不行。">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://elichn.github.io/images/%E8%B8%A9%E5%9D%91/%E8%B8%A9%E5%9D%91-img-10_6e697c18.png">
-<meta property="og:image" content="https://elichn.github.io/images/%E8%B8%A9%E5%9D%91/%E8%B8%A9%E5%9D%91-img-11_6f007f7b.png">
+<meta property="og:image" content="https://elichn.github.io/images/%E8%B8%A9%E5%9D%91/%E8%B8%A9%E5%9D%91-img-10_6e697c180.png">
+<meta property="og:image" content="https://elichn.github.io/images/%E8%B8%A9%E5%9D%91/%E8%B8%A9%E5%9D%91-img-11_6f007f7b0.png">
 <meta property="og:image" content="https://elichn.github.io/images/%E8%B8%A9%E5%9D%91/%E8%B8%A9%E5%9D%91-img-12_460a0a54.png">
 <meta property="og:image" content="https://elichn.github.io/images/%E8%B8%A9%E5%9D%91/%E8%B8%A9%E5%9D%91-img-13_4bbd9dbc.png">
 <meta property="article:published_time" content="2024-01-10T02:00:00.000Z">
-<meta property="article:modified_time" content="2026-08-01T09:27:48.792Z">
+<meta property="article:modified_time" content="2026-08-01T10:23:07.409Z">
 <meta property="article:author" content="elichn">
 <meta property="article:tag" content="踩坑">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://elichn.github.io/images/%E8%B8%A9%E5%9D%91/%E8%B8%A9%E5%9D%91-img-10_6e697c18.png">
+<meta name="twitter:image" content="https://elichn.github.io/images/%E8%B8%A9%E5%9D%91/%E8%B8%A9%E5%9D%91-img-10_6e697c180.png">
 
 
 <link rel="canonical" href="https://elichn.github.io/2024/01/10/2024-%E8%B8%A9%E5%9D%91%E8%AE%B0%E5%BD%95/">
@@ -287,8 +287,8 @@
 <p>最后解决是给key 加了过期时间 ex 7776000 可以了。这个应该是redis服务端设值的必须加过期时间。</p>
 <p>get *</p>
 <p>set * ‘上面get的值’ EX 7776000</p>
-<p><img src="/images/%E8%B8%A9%E5%9D%91/%E8%B8%A9%E5%9D%91-img-10_6e697c18.png"></p>
-<p><img src="/images/%E8%B8%A9%E5%9D%91/%E8%B8%A9%E5%9D%91-img-11_6f007f7b.png"></p>
+<p><img src="/images/%E8%B8%A9%E5%9D%91/%E8%B8%A9%E5%9D%91-img-10_6e697c180.png"></p>
+<p><img src="/images/%E8%B8%A9%E5%9D%91/%E8%B8%A9%E5%9D%91-img-11_6f007f7b0.png"></p>
 <p>如何找到token</p>
 <p>“*-19176570” AND “&#x2F;user&#x2F;api&#x2F;query”</p>
 <p><img src="/images/%E8%B8%A9%E5%9D%91/%E8%B8%A9%E5%9D%91-img-12_460a0a54.png"></p>
